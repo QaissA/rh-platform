@@ -1,0 +1,106 @@
+<section class="view">
+  <div class="sectionhead">
+    <div>
+      <h3>{{ firstName }} {{ lastName }}@if (jobTitle) { <span class="jobtitle">{{ jobTitle }}</span> }</h3>
+      <p>{{ dossier()?.email }}</p>
+    </div>
+    <a class="btn btn--ghost btn--sm" routerLink="/dossiers">Retour à la liste</a>
+  </div>
+
+  @if (loading()) {
+    <div class="card"><div class="loading"><span class="spinner"></span> Chargement…</div></div>
+  } @else if (!dossier()) {
+    <div class="card"><div class="empty"><p>Dossier introuvable.</p></div></div>
+  } @else {
+    <div class="stack">
+      @if (dossier()?.pending_job_title) {
+        <div class="card" style="border-color:var(--warn)">
+          <div class="card__bd">
+            Demande de poste en attente : <b>{{ dossier()?.pending_job_title }}</b>
+            — confirmez-la depuis la liste des dossiers, ou enregistrez un poste ci-dessous pour la remplacer.
+          </div>
+        </div>
+      }
+
+      <div class="card">
+        <div class="card__hd"><h3>Identité et poste</h3></div>
+        <div class="card__bd">
+          <div class="formgrid">
+            <div><label for="fn">Prénom</label><input id="fn" name="fn" [(ngModel)]="firstName" /></div>
+            <div><label for="ln">Nom</label><input id="ln" name="ln" [(ngModel)]="lastName" /></div>
+            <div class="full"><label for="jt">Poste</label><input id="jt" name="jt" [(ngModel)]="jobTitle" /></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card__hd"><h3>Adresse</h3></div>
+        <div class="card__bd">
+          <div class="formgrid">
+            <div class="full"><label for="ad">Voie</label><input id="ad" name="ad" [(ngModel)]="addressLine" /></div>
+            <div><label for="cp">Code postal</label><input id="cp" name="cp" [(ngModel)]="postalCode" /></div>
+            <div><label for="ci">Ville</label><input id="ci" name="ci" [(ngModel)]="city" /></div>
+            <div><label for="co">Pays</label><input id="co" name="co" [(ngModel)]="country" /></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card__hd"><h3>Informations confidentielles</h3></div>
+        <div class="card__bd">
+          <p class="widget__ctx" style="margin-bottom:12px">Visibles uniquement de la RH et des administrateurs.</p>
+          <div class="formgrid">
+            <div><label for="sal">Salaire brut mensuel (€)</label><input id="sal" name="sal" type="number" min="0" step="50" [(ngModel)]="salaryEuros" /></div>
+            <div>
+              <label for="ct">Contrat</label>
+              <select id="ct" name="ct" [(ngModel)]="contractType">
+                <option value="">—</option>
+                @for (c of contracts; track c) { <option [value]="c">{{ contractLabel(c) }}</option> }
+              </select>
+            </div>
+            <div><label for="hd">Date d’entrée</label><input id="hd" name="hd" type="date" [(ngModel)]="hiredOn" /></div>
+            <div><label for="ib">IBAN</label><input id="ib" name="ib" [(ngModel)]="iban" autocomplete="off" /></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="formactions">
+        <button class="btn btn--primary" (click)="save()" [disabled]="saving()">
+          @if (saving()) { Enregistrement… } @else { Enregistrer le dossier }
+        </button>
+      </div>
+
+      <div class="card">
+        <div class="card__hd"><h3>Signature</h3></div>
+        <div class="card__bd">
+          @if (dossier()?.signature_png; as png) {
+            <img class="sigpreview" [src]="png" alt="Signature" />
+            @if (dossier()?.signature_locked) {
+              <p class="widget__ctx" style="margin-top:12px">Verrouillée. L’employé·e ne peut plus la modifier.</p>
+              <div class="formactions">
+                <button class="btn btn--ghost btn--sm" (click)="unlockSignature()" [disabled]="unlocking()">
+                  Autoriser une nouvelle signature
+                </button>
+              </div>
+            } @else {
+              <p class="chip warn" style="margin-top:12px"><span class="d"></span> En attente d’une nouvelle signature de l’employé·e</p>
+            }
+          } @else {
+            <p class="widget__ctx">Aucune signature. L’employé·e la dessine dans Paramètres.</p>
+          }
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card__hd"><h3>Mot de passe</h3></div>
+        <div class="card__bd">
+          <p class="widget__ctx" style="margin-bottom:12px">Génère un mot de passe temporaire. La personne devra le changer à la prochaine connexion.</p>
+          <button class="btn btn--ghost btn--sm" (click)="resetPassword()" [disabled]="resetting()">Réinitialiser</button>
+          @if (tempPassword(); as pwd) {
+            <p style="margin-top:12px">Nouveau mot de passe : <code class="num">{{ pwd }}</code></p>
+          }
+        </div>
+      </div>
+    </div>
+  }
+</section>

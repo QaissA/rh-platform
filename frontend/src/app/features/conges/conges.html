@@ -1,0 +1,68 @@
+<section class="view">
+  <div class="grid kpis" style="grid-template-columns:repeat(3,1fr);margin-bottom:18px;">
+    <div class="card tile"><span class="eyebrow">Solde disponible</span><div class="fig">{{ balanceDays() }} <small>jours</small></div><div class="sub">Congés payés + RTT</div></div>
+    <div class="card tile"><span class="eyebrow">Posés cette année</span><div class="fig">{{ approvedDays() }} <small>jours</small></div><div class="sub">Demandes approuvées</div></div>
+    <div class="card tile"><span class="eyebrow">En attente</span><div class="fig">{{ pendingReqs().length }} <small>demandes</small></div><div class="sub">Manager puis RH</div></div>
+  </div>
+
+  <div class="sectionhead">
+    <div><h3>Mes demandes de congés</h3><p>Suivez l'état de vos demandes et déposez-en une nouvelle.</p></div>
+    <button class="btn btn--primary" (click)="togglePanel()">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      Nouvelle demande
+    </button>
+  </div>
+
+  <div class="panel" [class.is-open]="panelOpen()">
+    <div class="card" style="margin-bottom:16px;border-color:var(--brand-600);">
+      <div class="card__hd"><h3>Déposer une demande de congé</h3></div>
+      <div class="card__bd">
+        <div class="formgrid">
+          <div><label for="lt">Type d'absence</label>
+            <select id="lt" name="type" [(ngModel)]="type">
+              <option>Congés payés</option><option>RTT</option><option>Sans solde</option><option>Congé familial</option>
+            </select></div>
+          <div><label for="lj">Jours ouvrés</label><input id="lj" type="text" [value]="plannedDays() ?? '—'" readonly /></div>
+          <div><label for="ld1">Du</label><input id="ld1" name="start" type="date" [ngModel]="startDate()" (ngModelChange)="startDate.set($event)" /></div>
+          <div><label for="ld2">Au</label><input id="ld2" name="end" type="date" [ngModel]="endDate()" (ngModelChange)="endDate.set($event)" /></div>
+          <div class="full"><label for="lm">Motif (facultatif)</label><textarea id="lm" name="reason" rows="2" [(ngModel)]="reason" placeholder="Vacances en famille…"></textarea></div>
+        </div>
+        <div class="formactions">
+          <button class="btn btn--ghost btn--sm" (click)="panelOpen.set(false)">Annuler</button>
+          <button class="btn btn--primary btn--sm" (click)="submit()" [disabled]="submitting() || !startDate() || !endDate()">
+            @if (submitting()) { <span class="spinner" style="width:14px;height:14px;border-width:2px"></span> Envoi… }
+            @else { Envoyer la demande }
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    @if (loading()) {
+      <div class="loading"><span class="spinner"></span> Chargement…</div>
+    } @else if (requests().length) {
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Période</th><th>Type</th><th>Jours</th><th>Statut</th><th>Validation</th></tr></thead>
+          <tbody>
+            @for (r of requests(); track r.id) {
+              <tr>
+                <td class="cell-date">{{ range(r) }}</td>
+                <td class="cell-strong">{{ r.reason || 'Congés' }}</td>
+                <td class="num">{{ days(r) }}</td>
+                <td><span class="chip {{ chip(r.status) }}"><span class="d"></span>{{ label(r.status) }}</span></td>
+                <td><app-step-tracker [status]="r.status" /></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <div class="empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18M8 2.5v4M16 2.5v4"/></svg>
+        <p>Aucune demande de congé.<br>Cliquez sur « Nouvelle demande » pour commencer.</p>
+      </div>
+    }
+  </div>
+</section>

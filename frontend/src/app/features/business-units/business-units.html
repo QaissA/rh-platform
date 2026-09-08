@@ -1,0 +1,94 @@
+<section class="view">
+  <div class="sectionhead">
+    <div><h3>Business Units</h3><p>Créez les unités et désignez leur manager (2ᵉ niveau de validation des congés).</p></div>
+    <button class="btn btn--primary" (click)="togglePanel()">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      Nouvelle BU
+    </button>
+  </div>
+
+  <div class="grid kpis" style="grid-template-columns:repeat(3,1fr);margin-bottom:18px;">
+    <div class="card tile"><span class="eyebrow">Business Units</span><div class="fig">{{ units().length }}</div><div class="sub">Total</div></div>
+    <div class="card tile"><span class="eyebrow">Projets</span><div class="fig">{{ totalProjects() }}</div><div class="sub">Toutes BU</div></div>
+    <div class="card tile"><span class="eyebrow">Managers</span><div class="fig">{{ managers().length }}</div><div class="sub">Éligibles</div></div>
+  </div>
+
+  <div class="panel" [class.is-open]="panelOpen()">
+    <div class="card" style="margin-bottom:16px;border-color:var(--brand-600);">
+      <div class="card__hd"><h3>Créer une business unit</h3></div>
+      <div class="card__bd">
+        <div class="formgrid">
+          <div><label for="bn">Nom</label><input id="bn" name="bn" [(ngModel)]="name" placeholder="Engineering" /></div>
+          <div><label for="bm">Manager (facultatif)</label>
+            <select id="bm" name="bm" [(ngModel)]="managerId">
+              <option value="">— Aucun —</option>
+              @for (m of managers(); track m.id) { <option [value]="m.id">{{ managerName(m) }}</option> }
+            </select></div>
+        </div>
+        <div class="formactions">
+          <button class="btn btn--ghost btn--sm" (click)="panelOpen.set(false)">Annuler</button>
+          <button class="btn btn--primary btn--sm" (click)="submit()" [disabled]="submitting() || !nameValid()">
+            @if (submitting()) { <span class="spinner" style="width:14px;height:14px;border-width:2px"></span> Création… }
+            @else { Créer la BU }
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    @if (loading()) {
+      <div class="loading"><span class="spinner"></span> Chargement des business units…</div>
+    } @else if (units().length) {
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Business Unit</th><th>Manager</th><th>Projets</th><th>Membres</th><th style="text-align:right">Actions</th></tr></thead>
+          <tbody>
+            @for (b of units(); track b.id) {
+              <tr>
+                <td>
+                  @if (editingId() === b.id) {
+                    <input name="en{{ b.id }}" [(ngModel)]="editName"
+                           style="padding:6px 10px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);color:var(--ink);font-size:.9rem;min-width:160px" />
+                  } @else {
+                    <span class="cell-strong">{{ b.name }}</span>
+                  }
+                </td>
+                <td>
+                  <select class="roleselect" [value]="b.manager_id ?? ''"
+                          [disabled]="busyId() === b.id"
+                          (change)="changeManager(b, $any($event.target).value)">
+                    <option value="">— Aucun —</option>
+                    @for (m of managers(); track m.id) { <option [value]="m.id">{{ managerName(m) }}</option> }
+                  </select>
+                </td>
+                <td class="num">{{ b.project_count }}</td>
+                <td class="num">{{ b.member_count }}</td>
+                <td style="text-align:right">
+                  <div class="rowactions">
+                    @if (confirmId() === b.id) {
+                      <span style="font-size:.8rem;color:var(--ink-2)">Supprimer (ses projets aussi) ?</span>
+                      <button class="linkbtn danger" (click)="confirmDelete(b)" [disabled]="busyId() === b.id">Supprimer</button>
+                      <button class="linkbtn" (click)="cancelDelete()">Annuler</button>
+                    } @else if (editingId() === b.id) {
+                      <button class="linkbtn" (click)="saveRename(b)" [disabled]="busyId() === b.id">Enregistrer</button>
+                      <button class="linkbtn" (click)="cancelRename()">Annuler</button>
+                    } @else {
+                      <button class="linkbtn" (click)="startRename(b)">Renommer</button>
+                      <button class="linkbtn danger" (click)="askDelete(b.id)">Supprimer</button>
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <div class="empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-5h6v5"/></svg>
+        <p>Aucune business unit.<br>Cliquez sur « Nouvelle BU » pour commencer.</p>
+      </div>
+    }
+  </div>
+</section>

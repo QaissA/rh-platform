@@ -1,0 +1,148 @@
+<section class="view">
+  <div class="sectionhead">
+    <div><h3>Utilisateurs</h3><p>Gérez les comptes et les rôles de l'organisation.</p></div>
+    <button class="btn btn--primary" (click)="togglePanel()">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      Nouvel utilisateur
+    </button>
+  </div>
+
+  <div class="grid kpis" style="grid-template-columns:repeat(3,1fr);margin-bottom:18px;">
+    <div class="card tile"><span class="eyebrow">Comptes</span><div class="fig">{{ users().length }}</div><div class="sub">Utilisateurs actifs</div></div>
+    <div class="card tile"><span class="eyebrow">Administrateurs</span><div class="fig">{{ adminCount() }}</div><div class="sub">Accès privilégié</div></div>
+    <div class="card tile"><span class="eyebrow">Rôles</span><div class="fig">3</div><div class="sub">Employé · Manager · Admin</div></div>
+  </div>
+
+  <div class="panel" [class.is-open]="panelOpen()">
+    <div class="card" style="margin-bottom:16px;border-color:var(--brand-600);">
+      <div class="card__hd"><h3>Créer un utilisateur</h3></div>
+      <div class="card__bd">
+        <div class="formgrid">
+          <div><label for="fn">Prénom</label><input id="fn" name="fn" [(ngModel)]="firstName" placeholder="Nadia" /></div>
+          <div><label for="ln">Nom</label><input id="ln" name="ln" [(ngModel)]="lastName" placeholder="Nouvelle" /></div>
+          <div><label for="em">E-mail</label><input id="em" name="em" type="email" [(ngModel)]="email" placeholder="nadia@rh.local" [style.border-color]="emailInvalid() ? 'var(--bad)' : ''" />
+            @if (emailInvalid()) { <div style="font-size:.78rem;color:var(--bad);margin-top:4px">Adresse e-mail invalide.</div> }
+          </div>
+          <div class="full"><label for="rl">Rôle</label>
+            <select id="rl" name="rl" [(ngModel)]="role">
+              @for (r of roles; track r) { <option [value]="r">{{ roleLabel(r) }}</option> }
+            </select></div>
+        </div>
+        <p style="font-size:.8rem;color:var(--ink-3);margin-top:12px">
+          Un mot de passe temporaire est généré automatiquement. L'utilisateur devra le changer à sa première connexion.
+        </p>
+        <div class="formactions">
+          <button class="btn btn--ghost btn--sm" (click)="panelOpen.set(false)">Annuler</button>
+          <button class="btn btn--primary btn--sm" (click)="submit()" [disabled]="submitting() || !emailValid()">
+            @if (submitting()) { <span class="spinner" style="width:14px;height:14px;border-width:2px"></span> Création… }
+            @else { Créer l'utilisateur }
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  @if (created(); as c) {
+    <div class="card" style="margin-bottom:16px;border-color:var(--brand-600);background:var(--brand-tint)">
+      <div class="card__hd" style="display:flex;justify-content:space-between;align-items:center">
+        <h3>{{ createdReset() ? 'Mot de passe réinitialisé — nouveau mot de passe temporaire' : 'Compte créé — mot de passe temporaire' }}</h3>
+        <button class="linkbtn" (click)="dismissCreated()">Fermer</button>
+      </div>
+      <div class="card__bd">
+        <p style="font-size:.86rem;color:var(--ink-2);margin-bottom:12px">
+          Transmettez ces identifiants à <strong>{{ name(c) }}</strong>. Ce mot de passe ne sera plus affiché.
+          @if (createdReset()) { <span>L'utilisateur devra le changer à sa prochaine connexion.</span> }
+        </p>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;align-items:center;gap:12px">
+            <span style="width:110px;font-size:.78rem;color:var(--ink-3)">E-mail</span>
+            <code style="font-family:var(--mono);font-size:.9rem">{{ c.email }}</code>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <span style="width:110px;font-size:.78rem;color:var(--ink-3)">Mot de passe</span>
+            <code style="font-family:var(--mono);font-size:.95rem;font-weight:600;padding:4px 8px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm)">{{ c.temporary_password }}</code>
+            <button class="btn btn--ghost btn--sm" (click)="copyPassword()">
+              {{ copied() ? 'Copié ✓' : 'Copier' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <div class="card">
+    @if (loading()) {
+      <div class="loading"><span class="spinner"></span> Chargement des utilisateurs…</div>
+    } @else {
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Utilisateur</th><th>Rôle</th><th>Affectation</th><th style="text-align:right">Actions</th></tr></thead>
+          <tbody>
+            @for (u of users(); track u.id) {
+              <tr>
+                <td>
+                  <div class="who">
+                    <span class="avatar {{ av(u) }}">{{ initials(u) }}</span>
+                    <div>
+                      <div class="cell-strong">{{ name(u) }}@if (u.job_title) { <span class="jobtitle">{{ u.job_title }}</span> } @if (u.id === meId()) { <span class="chip mut">Vous</span> }</div>
+                      <div class="rl" style="font-size:.78rem;color:var(--ink-3);font-family:var(--mono)">{{ u.email }}</div>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <select class="roleselect" [value]="u.role"
+                          [disabled]="busyId() === u.id"
+                          (change)="changeRole(u, $any($event.target).value)">
+                    @for (r of roles; track r) { <option [value]="r">{{ roleLabel(r) }}</option> }
+                  </select>
+                </td>
+                <td>
+                  @if (assigningId() === u.id) {
+                    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                      <select class="roleselect" [value]="assignValue()" (change)="assignValue.set($any($event.target).value)">
+                        <option value="">— Aucune —</option>
+                        @if (assignableTeams().length) {
+                          <optgroup label="Équipes (employé·e / lead)">
+                            @for (t of assignableTeams(); track t.id) {
+                              <option [value]="'team:' + t.id">{{ t.business_unit?.name }} · {{ t.name }}</option>
+                            }
+                          </optgroup>
+                        }
+                        <optgroup label="Business unit seule (manager)">
+                          @for (b of units(); track b.id) { <option [value]="'bu:' + b.id">{{ b.name }}</option> }
+                        </optgroup>
+                      </select>
+                      <button class="linkbtn" (click)="saveAssign(u)" [disabled]="busyId() === u.id">Enregistrer</button>
+                      <button class="linkbtn" (click)="cancelAssign()">Annuler</button>
+                    </div>
+                  } @else {
+                    <span style="font-size:.85rem;color:var(--ink-2)">{{ assignmentLabel(u) }}</span>
+                    <button class="linkbtn" style="margin-left:8px" (click)="startAssign(u)">Affecter</button>
+                  }
+                </td>
+                <td style="text-align:right">
+                  <div class="rowactions">
+                    @if (confirmId() === u.id) {
+                      <span style="font-size:.8rem;color:var(--ink-2)">Confirmer ?</span>
+                      <button class="linkbtn danger" (click)="confirmDelete(u)" [disabled]="busyId() === u.id">Supprimer</button>
+                      <button class="linkbtn" (click)="cancelDelete()">Annuler</button>
+                    } @else if (resetConfirmId() === u.id) {
+                      <span style="font-size:.8rem;color:var(--ink-2)">Réinitialiser le mot de passe ?</span>
+                      <button class="linkbtn" (click)="confirmReset(u)" [disabled]="busyId() === u.id">Réinitialiser</button>
+                      <button class="linkbtn" (click)="cancelReset()">Annuler</button>
+                    } @else {
+                      <button class="linkbtn" (click)="askReset(u.id)" [disabled]="busyId() === u.id">Réinitialiser le mot de passe</button>
+                      @if (u.id !== meId()) {
+                        <button class="linkbtn danger" (click)="askDelete(u.id)">Supprimer</button>
+                      }
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+</section>

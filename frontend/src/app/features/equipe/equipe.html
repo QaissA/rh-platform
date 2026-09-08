@@ -1,0 +1,73 @@
+<section class="view">
+  @if (loading()) {
+    <div class="loading"><span class="spinner"></span> Chargement de l'équipe…</div>
+  } @else {
+    <div class="sectionhead">
+      <div>
+        <h3>Emploi de l'équipe {{ teamName() }}</h3>
+        <p>Présence sur site, télétravail et congés de l'équipe.</p>
+      </div>
+      <button class="btn btn--primary" (click)="togglePanel()">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        Déclarer ma présence
+      </button>
+    </div>
+
+    <div class="panel" [class.is-open]="panelOpen()">
+      <div class="card" style="margin-bottom:16px;border-color:var(--brand-600);">
+        <div class="card__hd"><h3>Déclarer ma présence</h3></div>
+        <div class="card__bd">
+          <div class="formgrid">
+            <div><label for="ps">Lieu de travail</label>
+              <select id="ps" name="status" [ngModel]="declStatus()" (ngModelChange)="declStatus.set($event)">
+                <option value="remote">Télétravail</option>
+                <option value="on_site">Sur site</option>
+              </select></div>
+            <div><label for="pd1">Du</label><input id="pd1" name="start" type="date" [ngModel]="declStart()" (ngModelChange)="declStart.set($event)" /></div>
+            <div><label for="pd2">Au</label><input id="pd2" name="end" type="date" [ngModel]="declEnd()" (ngModelChange)="declEnd.set($event)" /></div>
+          </div>
+          <div class="formactions">
+            <button class="btn btn--ghost btn--sm" (click)="panelOpen.set(false)">Annuler</button>
+            <button class="btn btn--primary btn--sm" (click)="submit()" [disabled]="submitting() || !declStart()">
+              @if (submitting()) { <span class="spinner" style="width:14px;height:14px;border-width:2px"></span> Enregistrement… }
+              @else { Enregistrer }
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid team" style="margin-bottom:18px;">
+      @for (m of members(); track m.id) {
+        <div class="card member">
+          <div class="member__top">
+            <span class="avatar {{ m.av }}">{{ m.initials }}</span>
+            <div>
+              <div class="nm">{{ m.name }}@if (m.jobTitle) { <span class="jobtitle">{{ m.jobTitle }}</span> } @if (m.isMe) { <span class="chip mut">Vous</span> }</div>
+              <div class="rl">{{ m.role }}</div>
+            </div>
+          </div>
+          <div class="member__foot">
+            <span class="chip {{ m.chip }}"><span class="d"></span>{{ m.statusLabel }}</span>
+            <span class="mail">{{ m.email }}</span>
+          </div>
+        </div>
+      }
+    </div>
+
+    <div class="card">
+      <div class="card__hd">
+        <h3>Calendrier de l'équipe</h3>
+        <span class="eyebrow">Cliquez une date pour vous déclarer</span>
+      </div>
+      <div class="card__bd">
+        <full-calendar [options]="calendarOptions()"></full-calendar>
+        <div class="meter__legend" style="margin-top:16px;">
+          <div class="it"><span class="swatch" style="background:var(--ok)"></span>Sur site</div>
+          <div class="it"><span class="swatch" style="background:var(--info)"></span>Télétravail</div>
+          <div class="it"><span class="swatch" style="background:var(--warn)"></span>Congé</div>
+        </div>
+      </div>
+    </div>
+  }
+</section>

@@ -1,0 +1,103 @@
+<section class="view">
+  <div class="sectionhead">
+    <div><h3>Projets</h3><p>Créez les projets d'une business unit et désignez leur chef·fe de projet (1ᵉʳ niveau de validation).</p></div>
+    <button class="btn btn--primary" (click)="togglePanel()">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      Nouveau projet
+    </button>
+  </div>
+
+  <div class="sectionhead" style="margin-top:0">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span class="eyebrow">Business Unit</span>
+      <select class="roleselect" [value]="filterBu()" (change)="setFilter($any($event.target).value)">
+        <option value="">Toutes</option>
+        @for (b of units(); track b.id) { <option [value]="b.id">{{ b.name }}</option> }
+      </select>
+    </div>
+  </div>
+
+  <div class="panel" [class.is-open]="panelOpen()">
+    <div class="card" style="margin-bottom:16px;border-color:var(--brand-600);">
+      <div class="card__hd"><h3>Créer un projet</h3></div>
+      <div class="card__bd">
+        <div class="formgrid">
+          <div><label for="pn">Nom</label><input id="pn" name="pn" [(ngModel)]="name" placeholder="Atlas" /></div>
+          <div><label for="pb">Business Unit</label>
+            <select id="pb" name="pb" [(ngModel)]="businessUnitId">
+              <option value="">— Choisir —</option>
+              @for (b of units(); track b.id) { <option [value]="b.id">{{ b.name }}</option> }
+            </select></div>
+          <div><label for="pl">Chef·fe de projet (facultatif)</label>
+            <select id="pl" name="pl" [(ngModel)]="leadId">
+              <option value="">— Aucun·e —</option>
+              @for (l of leads(); track l.id) { <option [value]="l.id">{{ leadName(l) }}</option> }
+            </select></div>
+        </div>
+        <div class="formactions">
+          <button class="btn btn--ghost btn--sm" (click)="panelOpen.set(false)">Annuler</button>
+          <button class="btn btn--primary btn--sm" (click)="submit()" [disabled]="submitting() || !nameValid() || !businessUnitId">
+            @if (submitting()) { <span class="spinner" style="width:14px;height:14px;border-width:2px"></span> Création… }
+            @else { Créer le projet }
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    @if (loading()) {
+      <div class="loading"><span class="spinner"></span> Chargement des projets…</div>
+    } @else if (projects().length) {
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Projet</th><th>Business Unit</th><th>Chef·fe de projet</th><th>Membres</th><th style="text-align:right">Actions</th></tr></thead>
+          <tbody>
+            @for (p of projects(); track p.id) {
+              <tr>
+                <td>
+                  @if (editingId() === p.id) {
+                    <input name="en{{ p.id }}" [(ngModel)]="editName"
+                           style="padding:6px 10px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);color:var(--ink);font-size:.9rem;min-width:140px" />
+                  } @else {
+                    <span class="cell-strong">{{ p.name }}</span>
+                  }
+                </td>
+                <td>{{ p.business_unit?.name || '—' }}</td>
+                <td>
+                  <select class="roleselect" [value]="p.lead_id ?? ''"
+                          [disabled]="busyId() === p.id"
+                          (change)="changeLead(p, $any($event.target).value)">
+                    <option value="">— Aucun·e —</option>
+                    @for (l of leads(); track l.id) { <option [value]="l.id">{{ leadName(l) }}</option> }
+                  </select>
+                </td>
+                <td class="num">{{ p.member_count }}</td>
+                <td style="text-align:right">
+                  <div class="rowactions">
+                    @if (confirmId() === p.id) {
+                      <span style="font-size:.8rem;color:var(--ink-2)">Supprimer le projet ?</span>
+                      <button class="linkbtn danger" (click)="confirmDelete(p)" [disabled]="busyId() === p.id">Supprimer</button>
+                      <button class="linkbtn" (click)="cancelDelete()">Annuler</button>
+                    } @else if (editingId() === p.id) {
+                      <button class="linkbtn" (click)="saveRename(p)" [disabled]="busyId() === p.id">Enregistrer</button>
+                      <button class="linkbtn" (click)="cancelRename()">Annuler</button>
+                    } @else {
+                      <button class="linkbtn" (click)="startRename(p)">Renommer</button>
+                      <button class="linkbtn danger" (click)="askDelete(p.id)">Supprimer</button>
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <div class="empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg>
+        <p>Aucun projet.<br>Cliquez sur « Nouveau projet » pour commencer.</p>
+      </div>
+    }
+  </div>
+</section>

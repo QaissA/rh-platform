@@ -1,0 +1,94 @@
+<section class="view">
+  <div class="sectionhead">
+    <div><h3>Équipes</h3><p>Chaque équipe est le roster d'un projet. Créez une équipe et affectez-la à un projet.</p></div>
+    <button class="btn btn--primary" (click)="togglePanel()">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      Nouvelle équipe
+    </button>
+  </div>
+
+  <div class="grid kpis" style="grid-template-columns:repeat(3,1fr);margin-bottom:18px;">
+    <div class="card tile"><span class="eyebrow">Équipes</span><div class="fig">{{ teams().length }}</div><div class="sub">Total</div></div>
+    <div class="card tile"><span class="eyebrow">Membres</span><div class="fig">{{ totalMembers() }}</div><div class="sub">Toutes équipes</div></div>
+    <div class="card tile"><span class="eyebrow">Projets libres</span><div class="fig">{{ freeProjects().length }}</div><div class="sub">Sans équipe</div></div>
+  </div>
+
+  <div class="panel" [class.is-open]="panelOpen()">
+    <div class="card" style="margin-bottom:16px;border-color:var(--brand-600);">
+      <div class="card__hd"><h3>Créer une équipe</h3></div>
+      <div class="card__bd">
+        <div class="formgrid">
+          <div><label for="tn">Nom</label><input id="tn" name="tn" [(ngModel)]="name" placeholder="Atlas" /></div>
+          <div><label for="tp">Projet (facultatif)</label>
+            <select id="tp" name="tp" [(ngModel)]="projectId">
+              <option value="">— Aucun —</option>
+              @for (p of freeProjects(); track p.id) { <option [value]="p.id">{{ p.name }}</option> }
+            </select></div>
+        </div>
+        <div class="formactions">
+          <button class="btn btn--ghost btn--sm" (click)="panelOpen.set(false)">Annuler</button>
+          <button class="btn btn--primary btn--sm" (click)="submit()" [disabled]="submitting() || !nameValid()">
+            @if (submitting()) { <span class="spinner" style="width:14px;height:14px;border-width:2px"></span> Création… }
+            @else { Créer l'équipe }
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    @if (loading()) {
+      <div class="loading"><span class="spinner"></span> Chargement des équipes…</div>
+    } @else if (teams().length) {
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Équipe</th><th>Projet</th><th>Business Unit</th><th>Membres</th><th style="text-align:right">Actions</th></tr></thead>
+          <tbody>
+            @for (t of teams(); track t.id) {
+              <tr>
+                <td>
+                  @if (editingId() === t.id) {
+                    <input name="en{{ t.id }}" [(ngModel)]="editName"
+                           style="padding:6px 10px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);color:var(--ink);font-size:.9rem;min-width:140px" />
+                  } @else {
+                    <span class="cell-strong">{{ t.name }}</span>
+                  }
+                </td>
+                <td>
+                  <select class="roleselect" [value]="t.project_id ?? ''"
+                          [disabled]="busyId() === t.id"
+                          (change)="changeProject(t, $any($event.target).value)">
+                    <option value="">— Aucun —</option>
+                    @for (p of projectOptions(t); track p.id) { <option [value]="p.id">{{ p.name }}</option> }
+                  </select>
+                </td>
+                <td>{{ t.business_unit?.name || '—' }}</td>
+                <td class="num">{{ t.member_count }}</td>
+                <td style="text-align:right">
+                  <div class="rowactions">
+                    @if (confirmId() === t.id) {
+                      <span style="font-size:.8rem;color:var(--ink-2)">Supprimer l'équipe ?</span>
+                      <button class="linkbtn danger" (click)="confirmDelete(t)" [disabled]="busyId() === t.id">Supprimer</button>
+                      <button class="linkbtn" (click)="cancelDelete()">Annuler</button>
+                    } @else if (editingId() === t.id) {
+                      <button class="linkbtn" (click)="saveRename(t)" [disabled]="busyId() === t.id">Enregistrer</button>
+                      <button class="linkbtn" (click)="cancelRename()">Annuler</button>
+                    } @else {
+                      <button class="linkbtn" (click)="startRename(t)">Renommer</button>
+                      <button class="linkbtn danger" (click)="askDelete(t.id)">Supprimer</button>
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <div class="empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17.5" cy="9" r="2.6"/><path d="M16 14.5a5.6 5.6 0 0 1 5.5 5.5"/></svg>
+        <p>Aucune équipe.<br>Cliquez sur « Nouvelle équipe » pour commencer.</p>
+      </div>
+    }
+  </div>
+</section>

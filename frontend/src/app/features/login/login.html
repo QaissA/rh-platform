@@ -1,0 +1,53 @@
+<section class="login">
+  <div class="login__brandpane">
+    <div class="login__wordmark">
+      <span class="mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14c4-6 8 6 12 0s5-4 6-2"/><path d="M3 19c4-6 8 6 12 0s5-4 6-2"/></svg>
+      </span>
+      Alizé
+    </div>
+    <div class="login__pitch">
+      <h1>La respiration RH de votre équipe.</h1>
+      <p>Congés, présence et démarches administratives — au même endroit, sans friction.</p>
+    </div>
+    <div class="login__meta">
+      <div><div class="k num">18,5</div><div class="l">jours de solde</div></div>
+      <div><div class="k num">7</div><div class="l">coéquipiers</div></div>
+      <div><div class="k num">2</div><div class="l">demandes en cours</div></div>
+    </div>
+  </div>
+
+  <div class="login__formpane">
+    <form class="login__form" (ngSubmit)="submit()">
+      <h2>Bon retour 👋</h2>
+      <p class="sub">Connectez-vous à votre espace Alizé.</p>
+
+      <div class="field">
+        <label for="email">Adresse e-mail</label>
+        <input id="email" name="email" type="email" [(ngModel)]="email" autocomplete="username" />
+      </div>
+      <div class="field">
+        <label for="pwd">Mot de passe</label>
+        <input id="pwd" name="password" type="password" [(ngModel)]="password" autocomplete="current-password" />
+      </div>
+
+      @if (error()) {
+        <div class="login__error">{{ error() }}</div>
+      }
+
+      <button class="btn btn--primary btn--block" type="submit" [disabled]="loading()">
+        @if (loading()) { <span class="spinner" style="width:16px;height:16px;border-width:2px"></span> Connexion… }
+        @else { Se connecter }
+      </button>
+
+      <div class="demohint">
+        Comptes de démo
+        <div class="demo-chips">
+          <button type="button" class="demo-chip" (click)="fillDemo('employee@rh.local')">Employé</button>
+          <button type="button" class="demo-chip" (click)="fillDemo('manager@rh.local')">Manager</button>
+          <button type="button" class="demo-chip" (click)="fillDemo('rh@rh.local')">RH</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</section>

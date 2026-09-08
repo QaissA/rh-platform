@@ -1,0 +1,92 @@
+<section class="view">
+  <div class="sectionhead">
+    <div>
+      <h3>Documents à traiter</h3>
+      <p>Rédigez l’attestation à partir du modèle, imprimez-la, puis mettez-la à disposition du collaborateur.</p>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn--sm" [class.btn--primary]="filter() === 'open'" [class.btn--ghost]="filter() !== 'open'" (click)="setFilter('open')">À traiter</button>
+      <button class="btn btn--sm" [class.btn--primary]="filter() === 'all'" [class.btn--ghost]="filter() !== 'all'" (click)="setFilter('all')">Toutes</button>
+    </div>
+  </div>
+
+  <div class="grid kpis" style="grid-template-columns:repeat(2,1fr);margin-bottom:18px;">
+    <div class="card tile"><div class="fig">{{ openCount() }} <small>à traiter</small></div><div class="sub">En attente ou en rédaction</div></div>
+    <div class="card tile"><div class="fig">{{ requests().length }}</div><div class="sub">{{ filter() === 'open' ? 'À traiter' : 'Toutes' }}</div></div>
+  </div>
+
+  @if (loading()) {
+    <div class="card"><div class="loading"><span class="spinner"></span> Chargement des demandes…</div></div>
+  } @else if (filter() === 'all') {
+    <div class="board">
+      <div class="card">
+        <div class="card__hd"><h3>À traiter</h3></div>
+        @if (openRows().length) {
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>Collaborateur·rice</th><th>Document</th><th></th></tr></thead>
+              <tbody>
+                @for (r of openRows(); track r.id) {
+                  <tr>
+                    <td class="cell-strong">{{ nameFor(r.user_id) }}@if (jobTitleFor(r.user_id); as t) { <span class="jobtitle">{{ t }}</span> }</td>
+                    <td>{{ typeLabel(r.doc_type) }}</td>
+                    <td style="text-align:right"><a class="btn btn--ghost btn--sm" [routerLink]="['/documents-rh', r.id]">Rédiger</a></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <div class="empty"><p>Aucune demande à traiter.</p></div>
+        }
+      </div>
+      <div class="card">
+        <div class="card__hd"><h3>Prêts</h3></div>
+        @if (readyRows().length) {
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>Collaborateur·rice</th><th>Document</th><th></th></tr></thead>
+              <tbody>
+                @for (r of readyRows(); track r.id) {
+                  <tr>
+                    <td class="cell-strong">{{ nameFor(r.user_id) }}@if (jobTitleFor(r.user_id); as t) { <span class="jobtitle">{{ t }}</span> }</td>
+                    <td>{{ typeLabel(r.doc_type) }}</td>
+                    <td style="text-align:right"><a class="btn btn--ghost btn--sm" [routerLink]="['/documents-rh', r.id]">Ouvrir</a></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <div class="empty"><p>Aucun document mis à disposition.</p></div>
+        }
+      </div>
+    </div>
+  } @else if (requests().length) {
+    <div class="card">
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Collaborateur·rice</th><th>Document</th><th>Statut</th><th style="text-align:right">Action</th></tr></thead>
+          <tbody>
+            @for (r of requests(); track r.id) {
+              <tr>
+                <td class="cell-strong">{{ nameFor(r.user_id) }}@if (jobTitleFor(r.user_id); as t) { <span class="jobtitle">{{ t }}</span> }</td>
+                <td>{{ typeLabel(r.doc_type) }}<br><span class="rl" style="font-weight:400;color:var(--ink-3);font-size:.8rem">{{ r.note }}</span></td>
+                <td><span class="chip {{ chip(r.status) }}"><span class="d"></span>{{ label(r.status) }}</span></td>
+                <td style="text-align:right">
+                  <a class="btn btn--ghost btn--sm" [routerLink]="['/documents-rh', r.id]">Rédiger</a>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  } @else {
+    <div class="card">
+      <div class="empty">
+        <p>Aucune demande à traiter.</p>
+      </div>
+    </div>
+  }
+</section>

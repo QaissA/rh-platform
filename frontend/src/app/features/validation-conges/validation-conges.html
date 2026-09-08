@@ -1,0 +1,70 @@
+<section class="view">
+  <div class="sectionhead">
+    <div>
+      <h3>Validation des congés</h3>
+      <p>{{ intro }}</p>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn--sm" [class.btn--primary]="filter() === 'pending'" [class.btn--ghost]="filter() !== 'pending'" (click)="setFilter('pending')">En attente</button>
+      <button class="btn btn--sm" [class.btn--primary]="filter() === 'all'" [class.btn--ghost]="filter() !== 'all'" (click)="setFilter('all')">Toutes</button>
+    </div>
+  </div>
+
+  <div class="grid kpis" style="grid-template-columns:repeat(3,1fr);margin-bottom:18px;">
+    <div class="card tile"><div class="fig">{{ pendingCount() }} <small>à traiter</small></div><div class="sub">Dans votre file</div></div>
+    <div class="card tile"><div class="fig">{{ requests().length }}</div><div class="sub">{{ filter() === 'pending' ? 'En attente' : 'Toutes' }}</div></div>
+    <div class="card tile"><div class="fig">{{ scopeLabel }}</div><div class="sub">{{ scopeSub }}</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card__hd">
+      <h3>{{ queueTitle }}</h3>
+    </div>
+    @if (loading()) {
+      <div class="loading"><span class="spinner"></span> Chargement des demandes…</div>
+    } @else if (requests().length) {
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Collaborateur·rice</th><th>Période</th><th>Jours</th><th>Validation</th><th>Statut</th><th style="text-align:right">Actions</th></tr></thead>
+          <tbody>
+            @for (r of requests(); track r.id) {
+              <tr>
+                <td>
+                  <div class="who">
+                    <span class="avatar {{ avatarFor(r.user_id) }}">{{ initialsFor(r.user_id) }}</span>
+                    <div class="cell-strong">{{ nameFor(r.user_id) }}@if (jobTitleFor(r.user_id); as t) { <span class="jobtitle">{{ t }}</span> }</div>
+                  </div>
+                </td>
+                <td class="cell-date">{{ range(r) }}</td>
+                <td class="num">{{ days(r) }}</td>
+                <td><app-step-tracker [status]="r.status" /></td>
+                <td><span class="chip {{ chip(r.status) }}"><span class="d"></span>{{ label(r.status) }}</span></td>
+                <td style="text-align:right">
+                  <div class="rowactions">
+                    @if (!isActionable(r)) {
+                      <span style="font-size:.8rem;color:var(--ink-3)">
+                        {{ r.status === 'pending_hr' ? 'En attente RH' : 'Traité' }}{{ r.decision_comment ? ' — ' + r.decision_comment : '' }}
+                      </span>
+                    } @else if (rejectingId() === r.id) {
+                      <input name="rc{{ r.id }}" [(ngModel)]="rejectComment" placeholder="Motif du refus (facultatif)"
+                             style="padding:6px 10px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);color:var(--ink);font-size:.82rem;min-width:200px" />
+                      <button class="btn btn--danger btn--sm" (click)="confirmReject(r)" [disabled]="busyId() === r.id">Confirmer</button>
+                      <button class="btn btn--ghost btn--sm" (click)="cancelReject()">Annuler</button>
+                    } @else {
+                      <button class="btn btn--primary btn--sm" (click)="approve(r)" [disabled]="busyId() === r.id">{{ r.status === 'pending_hr' ? 'Confirmer' : 'Approuver' }}</button>
+                      <button class="btn btn--danger btn--sm" (click)="askReject(r.id)" [disabled]="busyId() === r.id">Refuser</button>
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <div class="empty">
+        <p>{{ filter() === 'pending' ? 'Aucune demande en attente.' : 'Aucune demande pour votre périmètre.' }}</p>
+      </div>
+    }
+  </div>
+</section>

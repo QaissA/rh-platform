@@ -1,0 +1,59 @@
+<section class="view">
+  @if (loading()) {
+    <div class="loading"><span class="spinner"></span> Chargement du document…</div>
+  } @else if (request(); as r) {
+    <div class="sectionhead no-print">
+      <div>
+        <a routerLink="/documents-rh" class="rl" style="font-size:.82rem;color:var(--ink-3)">← Demandes</a>
+        <h3>{{ typeLabel(r.doc_type) }}</h3>
+        <p>
+          <span class="chip {{ chip(r.status) }}"><span class="d"></span>{{ label(r.status) }}</span>
+          @if (r.note) { · {{ r.note }} }
+        </p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn--ghost btn--sm" (click)="save()" [disabled]="saving()">Enregistrer</button>
+        <button class="btn btn--ghost btn--sm" (click)="print()">Imprimer</button>
+        <button class="btn btn--primary btn--sm" (click)="save('ready')" [disabled]="saving()">Mettre à disposition</button>
+      </div>
+    </div>
+
+    <div class="doc-edit">
+      <div class="card no-print">
+        <div class="card__hd"><h3>Champs du modèle</h3></div>
+        <div class="card__bd">
+          <div class="formgrid">
+            @for (field of template; track field.key) {
+              <div [class.full]="field.type === 'textarea'">
+                <label [attr.for]="'f' + field.key">{{ field.label }}</label>
+                @if (field.type === 'textarea') {
+                  <textarea [id]="'f' + field.key" rows="4" [(ngModel)]="fields[field.key]" [name]="field.key"></textarea>
+                } @else {
+                  <input [id]="'f' + field.key" [type]="field.type" [(ngModel)]="fields[field.key]" [name]="field.key" />
+                }
+              </div>
+            }
+          </div>
+          @if (rejecting()) {
+            <div class="formgrid" style="margin-top:14px">
+              <div class="full">
+                <label for="rej">Motif du refus (facultatif)</label>
+                <input id="rej" name="rej" [(ngModel)]="rejectComment" />
+              </div>
+            </div>
+            <div class="formactions">
+              <button class="btn btn--ghost btn--sm" (click)="rejecting.set(false)">Annuler</button>
+              <button class="btn btn--sm" style="background:var(--bad);color:#fff" (click)="confirmReject()" [disabled]="saving()">Confirmer le refus</button>
+            </div>
+          } @else if (r.status !== 'rejected') {
+            <div class="formactions">
+              <button class="linkbtn danger" (click)="rejecting.set(true)">Refuser la demande</button>
+            </div>
+          }
+        </div>
+      </div>
+
+      <app-document-preview [doc]="previewDoc()" />
+    </div>
+  }
+</section>

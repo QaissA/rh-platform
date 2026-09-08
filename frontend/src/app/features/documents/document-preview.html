@@ -1,0 +1,58 @@
+<article class="doc-sheet">
+  <header class="doc-sheet__brand">
+    <span class="mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14c4-6 8 6 12 0s5-4 6-2"/><path d="M3 19c4-6 8 6 12 0s5-4 6-2"/></svg>
+    </span>
+    <div>
+      <div class="doc-sheet__co">{{ pretty('company') }}</div>
+      <div class="doc-sheet__tag">Ressources humaines</div>
+    </div>
+  </header>
+
+  <h1 class="doc-sheet__title">{{ typeLabel() }}</h1>
+
+  @switch (doc().doc_type) {
+    @case ('work_certificate') {
+      <p>Nous soussignés, <strong>{{ pretty('company') }}</strong>, certifions que</p>
+      <p class="doc-sheet__name">{{ pretty('employee_name') }}</p>
+      <p>
+        occupe le poste de <strong>{{ pretty('job_title') }}</strong>
+        @if (f('start_date')) { depuis le <strong>{{ pretty('start_date') }}</strong> }.
+      </p>
+      @if (f('purpose')) {
+        <p>La présente attestation est délivrée pour : {{ f('purpose') }}.</p>
+      }
+    }
+    @case ('salary_certificate') {
+      <p>Nous soussignés, <strong>{{ pretty('company') }}</strong>, certifions que</p>
+      <p class="doc-sheet__name">{{ pretty('employee_name') }}</p>
+      <p>
+        occupant le poste de <strong>{{ pretty('job_title') }}</strong>,
+        a perçu au titre de la période <strong>{{ pretty('period') }}</strong>
+        un salaire net de <strong>{{ pretty('net_salary') }}</strong>.
+      </p>
+    }
+    @case ('leave_attestation') {
+      <p>Nous soussignés, <strong>{{ pretty('company') }}</strong>, certifions que</p>
+      <p class="doc-sheet__name">{{ pretty('employee_name') }}</p>
+      <p>
+        a bénéficié d’un congé de type <strong>{{ pretty('leave_type') }}</strong>
+        du <strong>{{ pretty('leave_start') }}</strong> au <strong>{{ pretty('leave_end') }}</strong>
+        @if (f('days')) { , soit <strong>{{ f('days') }}</strong> jour(s) } .
+      </p>
+    }
+    @default {
+      <p class="doc-sheet__name">{{ pretty('employee_name') }}</p>
+      <p class="doc-sheet__body">{{ f('body') || '………………' }}</p>
+    }
+  }
+
+  <p class="doc-sheet__close">Fait pour valoir ce que de droit.</p>
+
+  <footer class="doc-sheet__sign">
+    <div>
+      <div>À la date du {{ issued() || '………………' }}</div>
+      <div class="doc-sheet__signer">{{ pretty('signer') }}</div>
+    </div>
+  </footer>
+</article>
