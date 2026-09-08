@@ -1,0 +1,111 @@
+# RH platform — backend skeleton.
+# Boot everything with:  docker compose up --build
+# The gateway is the only service exposed to the host, on :3000.
+
+services:
+  # ---- Databases (one per service) --------------------------------------
+  postgres-auth:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: auth_service_development
+    volumes:
+      - pg_auth:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  postgres-leave:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: leave_service_development
+    volumes:
+      - pg_leave:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  postgres-admin:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: admin_doc_service_development
+    volumes:
+      - pg_admin:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ---- Application services ----------------------------------------------
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile.dev
+    environment:
+      RAILS_ENV: development
+      JWT_SECRET: ${JWT_SECRET:-dev-insecure-secret-change-me}
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:-dev-internal-token}
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres-auth:5432/auth_service_development
+    depends_on:
+      postgres-auth:
+        condition: service_healthy
+
+  leave-service:
+    build:
+      context: ./leave-service
+      dockerfile: Dockerfile.dev
+    environment:
+      RAILS_ENV: development
+      JWT_SECRET: ${JWT_SECRET:-dev-insecure-secret-change-me}
+      AUTH_SERVICE_URL: http://auth-service:3000
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:-dev-internal-token}
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres-leave:5432/leave_service_development
+    depends_on:
+      postgres-leave:
+        condition: service_healthy
+
+  admin-doc-service:
+    build:
+      context: ./admin-doc-service
+      dockerfile: Dockerfile.dev
+    environment:
+      RAILS_ENV: development
+      JWT_SECRET: ${JWT_SECRET:-dev-insecure-secret-change-me}
+      AUTH_SERVICE_URL: http://auth-service:3000
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:-dev-internal-token}
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres-admin:5432/admin_doc_service_development
+    depends_on:
+      postgres-admin:
+        condition: service_healthy
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile.dev
+    environment:
+      RAILS_ENV: development
+      JWT_SECRET: ${JWT_SECRET:-dev-insecure-secret-change-me}
+      AUTH_SERVICE_URL: http://auth-service:3000
+      LEAVE_SERVICE_URL: http://leave-service:3000
+      ADMIN_DOC_SERVICE_URL: http://admin-doc-service:3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - auth-service
+      - leave-service
+      - admin-doc-service
+
+volumes:
+  pg_auth:
+  pg_leave:
+  pg_admin:

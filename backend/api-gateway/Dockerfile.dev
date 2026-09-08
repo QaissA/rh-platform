@@ -1,0 +1,16 @@
+# Development image for the RH platform API gateway (no database).
+FROM ruby:3.4
+
+WORKDIR /app
+
+COPY Gemfile Gemfile.lock ./
+# The lock file is generated on the host (Windows); add the Linux platform.
+RUN bundle lock --add-platform x86_64-linux && bundle install
+
+COPY . .
+
+EXPOSE 3000
+
+# Use `bundle exec` rather than bin/rails: the host-generated binstubs carry a
+# Windows `ruby.exe` shebang that does not exist in this Linux image.
+CMD ["bundle", "exec", "rails", "server", "-b", "0.0.0.0", "-p", "3000"]

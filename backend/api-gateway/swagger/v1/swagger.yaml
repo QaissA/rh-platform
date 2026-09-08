@@ -1,0 +1,653 @@
+openapi: 3.0.1
+info:
+  title: RH Platform API
+  version: v1
+  description: >
+    Aggregated API for the enterprise HR ("RH") platform. All routes are exposed
+    through the API gateway. Authenticate via POST /auth/login, then send the
+    returned token as `Authorization: Bearer <token>` on every other request.
+servers:
+  - url: http://localhost:3000
+    description: Local gateway
+
+tags:
+  - name: Auth
+    description: Login and team membership (auth-service)
+  - name: Admin
+    description: User & role management — admin only (auth-service)
+  - name: Leave
+    description: Leave balance and leave requests (leave-service)
+  - name: Admin Documents
+    description: Administrative paper requests (admin-doc-service)
+  - name: System
+    description: Health checks
+
+paths:
+  /health:
+    get:
+      tags: [System]
+      summary: Gateway health check
+      security: []
+      responses:
+        "200":
+          description: Gateway is up
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+                  service: { type: string, example: api-gateway }
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Log in and obtain a JWT
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, example: employee@rh.local }
+                password: { type: string, example: password }
+      responses:
+        "200":
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
+                  user: { $ref: "#/components/schemas/User" }
+        "401":
+          description: Invalid email or password
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: The current authenticated user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /auth/notifications:
+    get:
+      tags: [Auth]
+      summary: Inbox notifications for the current user
+      responses:
+        "200":
+          description: Newest first (max 40)
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Notification" }
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /auth/notifications/{id}/read:
+    patch:
+      tags: [Auth]
+      summary: Mark a notification as read
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Updated notification
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Notification" }
+        "401":
+          description: Missing or invalid token
+        "404":
+          description: Notification not found
+
+  /auth/profile:
+    get:
+      tags: [Auth]
+      summary: Own profile (address and job title; never salary or IBAN)
+      responses:
+        "200":
+          description: Profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserProfile" }
+        "401":
+          description: Missing or invalid token
+    patch:
+      tags: [Auth]
+      summary: Update own address or request a job title (pending RH validation)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                address_line: { type: string, nullable: true }
+                postal_code: { type: string, nullable: true }
+                city: { type: string, nullable: true }
+                country: { type: string, example: FR }
+                pending_job_title: { type: string, nullable: true, description: Blank or null cancels a pending request }
+                signature_png: { type: string, description: PNG data URL; locked after first save }
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserProfile" }
+        "401":
+          description: Missing or invalid token
+        "422":
+          description: Validation failed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ValidationErrors" }
+
+  /auth/users:
+    get:
+      tags: [Admin]
+      summary: List all users (admin and RH)
+      responses:
+        "200":
+          description: Users
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/User" }
+        "401": { description: Missing or invalid token }
+        "403": { description: Requires the admin or RH role }
+    post:
+      tags: [Admin]
+      summary: Create a user (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, example: nadia@rh.local }
+                password: { type: string, example: password }
+                first_name: { type: string, example: Nadia }
+                last_name: { type: string, example: Nouvelle }
+                role: { type: string, enum: [employee, manager, admin], example: employee }
+                team_id: { type: integer, nullable: true, example: 1 }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "401": { description: Missing or invalid token }
+        "403": { description: Requires the admin role }
+        "422":
+          description: Validation failed (e.g. invalid role, duplicate email)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ValidationErrors" }
+
+  /auth/users/{id}:
+    get:
+      tags: [Admin]
+      summary: Confidential dossier (RH and admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Dossier including salary and IBAN
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserDossier" }
+        "401": { description: Missing or invalid token }
+        "403": { description: Requires the admin or RH role }
+        "404": { description: User not found }
+    patch:
+      tags: [Admin]
+      summary: Update dossier (RH/admin). App role, team and org fields are admin-only.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role: { type: string, enum: [employee, lead, manager, rh, admin], example: employee }
+                first_name: { type: string }
+                last_name: { type: string }
+                job_title: { type: string, nullable: true }
+                address_line: { type: string, nullable: true }
+                postal_code: { type: string, nullable: true }
+                city: { type: string, nullable: true }
+                country: { type: string }
+                salary_cents: { type: integer, nullable: true, example: 320000 }
+                contract_type: { type: string, enum: [cdi, cdd, stage, alternance, other], nullable: true }
+                hired_on: { type: string, format: date, nullable: true }
+                iban: { type: string, nullable: true }
+                team_id: { type: integer, nullable: true }
+                password: { type: string }
+      responses:
+        "200":
+          description: Updated dossier
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserDossier" }
+        "401": { description: Missing or invalid token }
+        "403": { description: Requires the admin or RH role }
+        "404": { description: User not found }
+        "422":
+          description: Invalid role, or would demote the last admin
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+    delete:
+      tags: [Admin]
+      summary: Delete a user (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "204": { description: Deleted }
+        "401": { description: Missing or invalid token }
+        "403": { description: Requires the admin role }
+        "404": { description: User not found }
+        "422": { description: Cannot delete yourself or the last admin }
+
+  /auth/users/{id}/job-title/accept:
+    post:
+      tags: [Admin]
+      summary: Confirm a pending job-title request (RH and admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Job title copied from pending_job_title
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserDossier" }
+        "401": { description: Missing or invalid token }
+        "403": { description: Requires the admin or RH role }
+        "422": { description: No pending job-title request }
+
+  /auth/users/{id}/job-title/reject:
+    post:
+      tags: [Admin]
+      summary: Refuse a pending job-title request (RH and admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                comment: { type: string }
+      responses:
+        "200":
+          description: Pending job title cleared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserDossier" }
+        "401": { description: Missing or invalid token }
+        "403": { description: Requires the admin or RH role }
+        "422": { description: No pending job-title request }
+
+  /auth/users/{id}/signature/unlock:
+    post:
+      tags: [Admin]
+      summary: Reopen the employee signature pad (RH and admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Signature stays; employee may draw a new one
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserDossier" }
+        "401": { description: Missing or invalid token }
+        "403": { description: Requires the admin or RH role }
+        "422": { description: No signature to unlock }
+
+  /auth/teams/mine:
+    get:
+      tags: [Auth]
+      summary: Current user's team and colleagues
+      responses:
+        "200":
+          description: Team and members
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  team:
+                    type: object
+                    nullable: true
+                    properties:
+                      id: { type: integer, example: 1 }
+                      name: { type: string, example: Platform }
+                  members:
+                    type: array
+                    items: { $ref: "#/components/schemas/TeamMember" }
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /leave/balance:
+    get:
+      tags: [Leave]
+      summary: Current user's remaining leave (solde de congés)
+      responses:
+        "200":
+          description: Remaining leave
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user_id: { type: integer, example: 2 }
+                  days_remaining: { type: string, example: "0.0" }
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /leave/requests:
+    get:
+      tags: [Leave]
+      summary: List current user's leave requests
+      responses:
+        "200":
+          description: Leave requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/LeaveRequest" }
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+    post:
+      tags: [Leave]
+      summary: Submit a leave request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [start_date, end_date]
+              properties:
+                start_date: { type: string, format: date, example: "2026-08-01" }
+                end_date: { type: string, format: date, example: "2026-08-05" }
+                reason: { type: string, example: vacation }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LeaveRequest" }
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "422":
+          description: Validation failed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ValidationErrors" }
+
+  /admin-docs/requests:
+    get:
+      tags: [Admin Documents]
+      summary: List current user's administrative paper requests
+      responses:
+        "200":
+          description: Document requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/DocumentRequest" }
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+    post:
+      tags: [Admin Documents]
+      summary: Submit an administrative paper request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [doc_type]
+              properties:
+                doc_type:
+                  type: string
+                  enum: [work_certificate, salary_certificate, leave_attestation, other]
+                  example: work_certificate
+                note: { type: string, example: for bank }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DocumentRequest" }
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "422":
+          description: Validation failed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ValidationErrors" }
+
+  /admin-docs/requests/inbox:
+    get:
+      tags: [Admin Documents]
+      summary: List all administrative paper requests (RH and admin)
+      responses:
+        "200":
+          description: Document requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/DocumentRequest" }
+        "401": { description: Missing or invalid token }
+        "403": { description: Requires the RH or admin role }
+
+  /admin-docs/requests/{id}:
+    get:
+      tags: [Admin Documents]
+      summary: Show one request (owner, or RH/admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Document request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DocumentRequest" }
+        "401": { description: Missing or invalid token }
+        "403": { description: Not allowed }
+        "404": { description: Not found }
+    patch:
+      tags: [Admin Documents]
+      summary: RH saves template fields and/or changes status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fields:
+                  type: object
+                  additionalProperties: { type: string }
+                status: { type: string, enum: [pending, processing, ready, rejected] }
+                decision_comment: { type: string }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DocumentRequest" }
+        "401": { description: Missing or invalid token }
+        "403": { description: Requires the RH or admin role }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    User:
+      type: object
+      properties:
+        id: { type: integer, example: 2 }
+        email: { type: string, example: employee@rh.local }
+        first_name: { type: string, nullable: true, example: Emma }
+        last_name: { type: string, nullable: true, example: Employee }
+        role: { type: string, enum: [employee, lead, manager, rh, admin], example: employee }
+        team_id: { type: integer, nullable: true, example: 1 }
+        job_title: { type: string, nullable: true, example: Développeuse }
+        pending_job_title: { type: string, nullable: true }
+        must_change_password: { type: boolean }
+    UserProfile:
+      allOf:
+        - $ref: "#/components/schemas/User"
+        - type: object
+          properties:
+            address_line: { type: string, nullable: true, example: 10 rue de Lyon }
+            postal_code: { type: string, nullable: true, example: "69001" }
+            city: { type: string, nullable: true, example: Lyon }
+            country: { type: string, nullable: true, example: FR }
+            signature_png: { type: string, nullable: true }
+            signature_locked: { type: boolean }
+    UserDossier:
+      allOf:
+        - $ref: "#/components/schemas/UserProfile"
+        - type: object
+          properties:
+            salary_cents: { type: integer, nullable: true, example: 320000 }
+            contract_type: { type: string, enum: [cdi, cdd, stage, alternance, other], nullable: true }
+            hired_on: { type: string, format: date, nullable: true }
+            iban: { type: string, nullable: true }
+    TeamMember:
+      type: object
+      properties:
+        id: { type: integer, example: 1 }
+        email: { type: string, example: manager@rh.local }
+        first_name: { type: string, example: Mona }
+        last_name: { type: string, example: Manager }
+        role: { type: string, example: manager }
+        job_title: { type: string, nullable: true, example: Manager d’équipe }
+    LeaveRequest:
+      type: object
+      properties:
+        id: { type: integer, example: 1 }
+        user_id: { type: integer, example: 2 }
+        start_date: { type: string, format: date, example: "2026-08-01" }
+        end_date: { type: string, format: date, example: "2026-08-05" }
+        status: { type: string, enum: [pending, pending_hr, approved, rejected], example: pending }
+        reason: { type: string, nullable: true, example: vacation }
+    DocumentRequest:
+      type: object
+      properties:
+        id: { type: integer, example: 1 }
+        user_id: { type: integer, example: 2 }
+        doc_type: { type: string, example: work_certificate }
+        status: { type: string, enum: [pending, processing, ready, rejected], example: pending }
+        note: { type: string, nullable: true, example: for bank }
+        fields:
+          type: object
+          additionalProperties: { type: string }
+    Notification:
+      type: object
+      properties:
+        id: { type: integer, example: 1 }
+        kind: { type: string, enum: [document_ready, leave_manager_approved, leave_hr_approved, job_title_approved, job_title_rejected, signature_unlocked], example: document_ready }
+        title: { type: string, example: Votre document est prêt }
+        body: { type: string, nullable: true, example: La RH a mis votre document à disposition. }
+        link: { type: string, nullable: true, example: /documents/12 }
+        read: { type: boolean, example: false }
+        created_at: { type: string, format: date-time }
+    Error:
+      type: object
+      properties:
+        error: { type: string, example: Unauthorized }
+    ValidationErrors:
+      type: object
+      properties:
+        errors:
+          type: array
+          items: { type: string }
+          example: ["End date must be on or after start_date"]
+
+# Applied to every operation unless overridden with `security: []`.
+security:
+  - bearerAuth: []
