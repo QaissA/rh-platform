@@ -1,0 +1,45 @@
+# Secrets — never commit these
+.env
+.env.*
+!.env.example
+**/.env
+!**/.env.example
+**/config/master.key
+**/config/credentials/*.key
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
+*.swo
+
+# Local agent / IDE metadata
+.claude/
+.cursor/
+
+# Node / Angular (also covered by frontend/.gitignore)
+node_modules/
+dist/
+.angular/
+out-tsc/
+npm-debug.log
+yarn-error.log
+
+# Rails runtime
+**/.bundle/
+**/vendor/bundle/
+**/log/*
+!**/log/.keep
+**/tmp/*
+!**/tmp/.keep
+**/tmp/pids/*
+!**/tmp/pids/.keep
+**/storage/*
+!**/storage/.keep
+**/tmp/storage/*
+!**/tmp/storage/.keep
+
+# Test / coverage
+coverage/
+*.pid
