@@ -1,16 +1,17 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { FormsModule } from '@angular/forms';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { LeaveService } from '../../core/leave.service';
 import { TeamService } from '../../core/team.service';
 import { ScheduleService } from '../../core/schedule.service';
 import { DocumentService } from '../../core/document.service';
-import { UserAdminService } from '../../core/user-admin.service';
 import { AuthService } from '../../core/auth.service';
 import { ToastService } from '../../core/toast.service';
 import { InboxBadgeService } from '../../core/inbox-badge.service';
+import { PeopleService } from '../../core/people.service';
+import { I18nService } from '../../core/i18n.service';
+import { TranslatePipe } from '../../core/translate.pipe';
 import {
   DocumentRequest,
   LeaveRequest,
@@ -21,7 +22,6 @@ import {
 import {
   addDaysIso,
   avatarClass,
-  frRange,
   fullName,
   initials,
   isoDate,
@@ -31,12 +31,8 @@ import {
 } from '../../core/format';
 import {
   DOC_STATUS_CHIP,
-  DOC_STATUS_LABEL,
-  DOC_TYPE_LABEL,
   LEAVE_STATUS_CHIP,
-  LEAVE_STATUS_LABEL,
   PRESENCE_CHIP,
-  PRESENCE_LABEL,
 } from '../../core/labels';
 import { StepTracker } from '../../shared/step-tracker';
 
@@ -81,7 +77,7 @@ interface DocRow {
 
 @Component({
   selector: 'app-dashboard',
-  imports: [RouterLink, FormsModule, StepTracker],
+  imports: [RouterLink, StepTracker, TranslatePipe],
   templateUrl: './dashboard.html',
 })
 export class Dashboard {
@@ -89,10 +85,11 @@ export class Dashboard {
   private team = inject(TeamService);
   private schedule = inject(ScheduleService);
   private docsApi = inject(DocumentService);
-  private usersApi = inject(UserAdminService);
+  private people = inject(PeopleService);
   private auth = inject(AuthService);
   private toast = inject(ToastService);
   private badges = inject(InboxBadgeService);
+  private i18n = inject(I18nService);
 
   protected loading = signal(true);
   protected balanceDays = signal(0);
@@ -107,12 +104,6 @@ export class Dashboard {
   protected nextLeave = signal<string | null>(null);
   protected teamName = signal<string | null>(null);
 
-  protected busyId = signal<number | null>(null);
-  protected rejectingId = signal<number | null>(null);
-  protected rejectComment = '';
-
-  private people = new Map<number, TeamMember>();
-
   protected firstName = computed(() => {
     const u = this.auth.user();
     return u ? fullName(u).split(' ')[0] : '';
@@ -122,7 +113,10 @@ export class Dashboard {
   protected isRh = computed(() => this.role() === 'rh' || this.role() === 'admin');
 
   constructor() {
-    this.reload();
+    effect(() => {
+      this.i18n.lang();
+      this.reload();
+    });
   }
 
   reload(): void {
@@ -150,21 +144,10 @@ export class Dashboard {
       inbox: role === 'rh' || role === 'admin'
         ? this.docsApi.getInbox().pipe(catchError(() => of(emptyDocs)))
         : of(emptyDocs),
+      people: this.people.load().pipe(catchError(() => of(new Map<number, TeamMember>()))),
     }).subscribe({
       next: (data) => {
         const me = this.auth.user();
-        this.people.clear();
-        if (me) {
-          this.people.set(me.id, {
-            id: me.id,
-            email: me.email,
-            first_name: me.first_name ?? null,
-            last_name: me.last_name ?? null,
-            role: me.role,
-            job_title: me.job_title ?? null,
-          });
-        }
-        (data.team.members ?? []).forEach((m) => this.people.set(m.id, m));
         this.teamName.set(data.team.team?.name ?? null);
 
         this.balanceDays.set(Number(data.balance.days_remaining) || 0);
@@ -190,75 +173,10 @@ export class Dashboard {
 
         this.loading.set(false);
         this.badges.refresh(role);
-
-        if (role === 'rh' || role === 'admin') {
-          this.usersApi.list().subscribe({
-            next: (users) => {
-              users.forEach((u) =>
-                this.people.set(u.id, {
-                  id: u.id,
-                  email: u.email,
-                  first_name: u.first_name ?? null,
-                  last_name: u.last_name ?? null,
-                  role: u.role,
-                  job_title: u.job_title ?? null,
-                }),
-              );
-              this.managerQueue.set(data.pending.map((r) => this.toQueue(r)));
-              this.hrQueue.set(data.pendingHr.map((r) => this.toQueue(r)));
-              this.openDocs.set(
-                data.inbox
-                  .filter((d) => d.status === 'pending' || d.status === 'processing')
-                  .slice(0, 3)
-                  .map((d) => this.toDocRow(d)),
-              );
-            },
-          });
-        }
       },
       error: () => {
         this.loading.set(false);
-        this.toast.show('Impossible de charger le tableau de bord');
-      },
-    });
-  }
-
-  approve(r: LeaveRequest): void {
-    this.busyId.set(r.id);
-    this.leave.approve(r.id).subscribe({
-      next: (updated) => {
-        this.busyId.set(null);
-        this.toast.show(
-          updated.status === 'pending_hr' ? 'Demande transmise à la RH' : 'Congé confirmé',
-        );
-        this.reload();
-      },
-      error: () => {
-        this.busyId.set(null);
-        this.toast.show('Approbation impossible');
-      },
-    });
-  }
-
-  askReject(id: number): void {
-    this.rejectComment = '';
-    this.rejectingId.set(id);
-  }
-  cancelReject(): void {
-    this.rejectingId.set(null);
-  }
-  confirmReject(r: LeaveRequest): void {
-    this.busyId.set(r.id);
-    this.leave.reject(r.id, this.rejectComment.trim() || undefined).subscribe({
-      next: () => {
-        this.busyId.set(null);
-        this.rejectingId.set(null);
-        this.toast.show('Demande refusée');
-        this.reload();
-      },
-      error: () => {
-        this.busyId.set(null);
-        this.toast.show('Refus impossible');
+        this.toast.show(this.i18n.t('dashboard.loadFail'));
       },
     });
   }
@@ -267,40 +185,39 @@ export class Dashboard {
     const upcoming = requests
       .filter((r) => r.status === 'approved' && r.start_date >= today)
       .sort((a, b) => a.start_date.localeCompare(b.start_date));
-    return upcoming[0] ? frRange(upcoming[0].start_date, upcoming[0].end_date) : null;
+    return upcoming[0] ? this.i18n.formatRange(upcoming[0].start_date, upcoming[0].end_date) : null;
   }
 
   private toLeaveRow(r: LeaveRequest): LeaveRow {
     return {
       id: r.id,
-      range: frRange(r.start_date, r.end_date),
-      type: r.reason || 'Congés',
+      range: this.i18n.formatRange(r.start_date, r.end_date),
+      type: r.reason || this.i18n.t('leave.defaultReason'),
       days: workingDays(r.start_date, r.end_date),
       status: r.status,
       chip: LEAVE_STATUS_CHIP[r.status] ?? 'mut',
-      label: LEAVE_STATUS_LABEL[r.status] ?? r.status,
+      label: this.i18n.t(`status.leave.${r.status}`),
     };
   }
 
   private toDocRow(d: DocumentRequest): DocRow {
     return {
       id: d.id,
-      title: DOC_TYPE_LABEL[d.doc_type] ?? d.doc_type,
+      title: this.i18n.t(`docType.${d.doc_type}`),
       status: d.status,
       chip: DOC_STATUS_CHIP[d.status] ?? 'mut',
-      label: DOC_STATUS_LABEL[d.status] ?? d.status,
+      label: this.i18n.t(`status.doc.${d.status}`),
     };
   }
 
   private toQueue(r: LeaveRequest): QueueRow {
-    const m = this.people.get(r.user_id);
     return {
       req: r,
-      name: m ? fullName(m) : `Collaborateur #${r.user_id}`,
-      jobTitle: jobTitleOf(m),
-      initials: m ? initials(m) : '?',
+      name: this.people.nameOf(r.user_id),
+      jobTitle: this.people.jobTitleOf(r.user_id),
+      initials: this.people.initialsOf(r.user_id),
       av: avatarClass(r.user_id),
-      range: frRange(r.start_date, r.end_date),
+      range: this.i18n.formatRange(r.start_date, r.end_date),
       days: r.days ?? workingDays(r.start_date, r.end_date),
     };
   }
@@ -336,9 +253,9 @@ export class Dashboard {
       av: avatarClass(m.id),
       name: fullName(m),
       jobTitle: jobTitleOf(m),
-      role: m.role,
+      role: this.i18n.t(`status.role.${m.role}`),
       chip: PRESENCE_CHIP[status],
-      label: PRESENCE_LABEL[status],
+      label: this.i18n.t(`status.presence.${status}`),
     };
   }
 }

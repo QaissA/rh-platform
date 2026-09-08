@@ -6,6 +6,8 @@ Rails.application.routes.draw do
   get "up" => "rails/health#show", as: :rails_health_check
   get "health" => "health#show"
 
+  mount ActionCable.server => "/cable"
+
   # Reverse-proxy every request to the matching downstream service.
   match "auth/*path",       to: "proxy#forward", defaults: { prefix: "auth" },       via: :all
   match "leave/*path",      to: "proxy#forward", defaults: { prefix: "leave" },      via: :all

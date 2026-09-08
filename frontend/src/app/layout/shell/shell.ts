@@ -5,28 +5,16 @@ import { AuthService } from '../../core/auth.service';
 import { ThemeService } from '../../core/theme.service';
 import { NotificationService } from '../../core/notification.service';
 import { InboxBadgeService } from '../../core/inbox-badge.service';
+import { ChatService } from '../../core/chat.service';
+import { I18nService } from '../../core/i18n.service';
+import { TranslatePipe } from '../../core/translate.pipe';
+import { LangSwitcher } from '../../shared/lang-switcher';
 import { initials, fullName, jobTitleOf } from '../../core/format';
-import { ROLE_LABEL } from '../../core/labels';
 import { AppNotification } from '../../core/models';
-
-const TITLES: Record<string, string> = {
-  dashboard: 'Tableau de bord',
-  conges: 'Congés',
-  'validation-conges': 'Validation des congés',
-  equipe: 'Mon équipe',
-  equipes: 'Équipes',
-  'business-units': 'Business Units',
-  projets: 'Projets',
-  documents: 'Documents',
-  'documents-rh': 'Documents à traiter',
-  dossiers: 'Dossiers',
-  parametres: 'Paramètres',
-  utilisateurs: 'Utilisateurs',
-};
 
 @Component({
   selector: 'app-shell',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, TranslatePipe, LangSwitcher],
   templateUrl: './shell.html',
 })
 export class Shell implements OnDestroy {
@@ -35,16 +23,31 @@ export class Shell implements OnDestroy {
   protected theme = inject(ThemeService);
   protected notifs = inject(NotificationService);
   protected badges = inject(InboxBadgeService);
+  protected chat = inject(ChatService);
+  protected i18n = inject(I18nService);
   private poll: ReturnType<typeof setInterval> | null = null;
 
   protected user = this.auth.user;
-  protected pageTitle = signal(this.titleFor(this.router.url));
-  protected pageMeta = signal(this.metaFor(this.router.url));
+  protected pageKey = signal(this.key(this.router.url));
   protected notifOpen = signal(false);
+
+  protected pageTitle = computed(() => {
+    this.i18n.lang();
+    const k = this.pageKey();
+    const title = this.i18n.t(`page.${k}.title`);
+    return title === `page.${k}.title` ? this.i18n.t('brand') : title;
+  });
+  protected pageMeta = computed(() => {
+    this.i18n.lang();
+    const k = this.pageKey();
+    if (k === 'dashboard') return this.today();
+    const meta = this.i18n.t(`page.${k}.meta`);
+    return meta === `page.${k}.meta` ? this.today() : meta;
+  });
 
   protected displayName = computed(() => {
     const u = this.user();
-    return u ? fullName(u) : 'Utilisateur';
+    return u ? fullName(u) : this.i18n.t('common.user');
   });
   protected jobTitle = computed(() => jobTitleOf(this.user()));
   protected userInitials = computed(() => {
@@ -52,8 +55,9 @@ export class Shell implements OnDestroy {
     return u ? initials(u) : '?';
   });
   protected roleLabel = computed(() => {
+    this.i18n.lang();
     const u = this.user();
-    return u ? (ROLE_LABEL[u.role] ?? u.role) : '';
+    return u ? this.i18n.t(`status.role.${u.role}`) : '';
   });
   protected isAdmin = computed(() => this.user()?.role === 'admin');
   protected isRh = computed(() => {
@@ -74,10 +78,7 @@ export class Shell implements OnDestroy {
     }, 20000);
     this.router.events
       .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
-      .subscribe((e) => {
-        this.pageTitle.set(this.titleFor(e.urlAfterRedirects));
-        this.pageMeta.set(this.metaFor(e.urlAfterRedirects));
-      });
+      .subscribe((e) => this.pageKey.set(this.key(e.urlAfterRedirects)));
   }
 
   @HostListener('document:click')
@@ -99,13 +100,12 @@ export class Shell implements OnDestroy {
   }
 
   when(iso: string): string {
-    const d = new Date(iso);
-    return new Intl.DateTimeFormat('fr-FR', {
+    return new Intl.DateTimeFormat(this.i18n.locale(), {
       day: 'numeric',
       month: 'short',
       hour: '2-digit',
       minute: '2-digit',
-    }).format(d);
+    }).format(new Date(iso));
   }
 
   ngOnDestroy(): void {
@@ -121,39 +121,8 @@ export class Shell implements OnDestroy {
     return url.split('?')[0].split('/').filter(Boolean)[0] ?? 'dashboard';
   }
 
-  private titleFor(url: string): string {
-    return TITLES[this.key(url)] ?? 'Alizé';
-  }
-
-  private metaFor(url: string): string {
-    switch (this.key(url)) {
-      case 'conges':
-        return 'Solde et demandes';
-      case 'validation-conges':
-        return 'Demandes à valider';
-      case 'equipe':
-        return "Emploi du temps de l'équipe";
-      case 'equipes':
-        return 'Gestion des équipes';
-      case 'business-units':
-        return 'Unités & managers';
-      case 'projets':
-        return 'Projets & chef·fe·s de projet';
-      case 'documents':
-        return 'Démarches administratives';
-      case 'documents-rh':
-        return 'Rédaction et mise à disposition';
-      case 'dossiers':
-        return 'Fiches collaborateurs';
-      case 'parametres':
-        return 'Compte et coordonnées';
-      default:
-        return this.today();
-    }
-  }
-
   private today(): string {
-    const s = new Intl.DateTimeFormat('fr-FR', {
+    const s = new Intl.DateTimeFormat(this.i18n.locale(), {
       weekday: 'long',
       day: 'numeric',
       month: 'long',

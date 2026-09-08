@@ -234,7 +234,7 @@ export interface UpdateProject {
   lead_id?: number | null;
 }
 
-export type DocStatus = 'pending' | 'processing' | 'ready' | 'rejected';
+export type DocStatus = 'pending' | 'processing' | 'ready' | 'rejected' | 'cancelled';
 
 export interface DocumentRequest {
   id: number;
@@ -250,4 +250,28 @@ export interface DocumentRequest {
 export interface NewDocumentRequest {
   doc_type: string;
   note?: string;
+}
+
+export interface ChatAttachment {
+  filename: string;
+  content_type: string;
+  byte_size: number;
+  url: string;
+}
+
+export interface ChatMessage {
+  id: number;
+  conversation_id: number;
+  sender_id: number;
+  body: string | null;
+  created_at: string;
+  read_at: string | null;
+  attachment?: ChatAttachment | null;
+}
+
+export interface Conversation {
+  id: number;
+  other: TeamMember;
+  last_message: ChatMessage | null;
+  unread_count: number;
 }

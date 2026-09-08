@@ -1,6 +1,7 @@
 class Notification < ApplicationRecord
   KINDS = %w[
     document_ready
+    document_rejected
     leave_manager_approved
     leave_hr_approved
     job_title_approved

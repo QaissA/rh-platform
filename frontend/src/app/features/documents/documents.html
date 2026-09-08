@@ -1,28 +1,28 @@
 <section class="view">
   <div class="sectionhead">
-    <div><h3>Documents administratifs</h3><p>Demandez une attestation ou récupérez un document mis à disposition.</p></div>
+    <div><h3>{{ 'docs.title' | t }}</h3><p>{{ 'docs.help' | t }}</p></div>
     <button class="btn btn--primary" (click)="togglePanel()">
       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-      Nouvelle demande
+      {{ 'common.newRequest' | t }}
     </button>
   </div>
 
   <div class="panel" [class.is-open]="panelOpen()">
     <div class="card" style="margin-bottom:16px;border-color:var(--brand-600);">
-      <div class="card__hd"><h3>Demander un document</h3></div>
+      <div class="card__hd"><h3>{{ 'docs.newTitle' | t }}</h3></div>
       <div class="card__bd">
         <div class="formgrid">
-          <div class="full"><label for="dt">Type de document</label>
+          <div class="full"><label for="dt">{{ 'docs.type' | t }}</label>
             <select id="dt" name="docType" [(ngModel)]="docType">
-              @for (t of docTypes; track t.value) { <option [value]="t.value">{{ t.label }}</option> }
+              @for (t of docTypes; track t) { <option [value]="t">{{ 'docType.' + t | t }}</option> }
             </select></div>
-          <div class="full"><label for="dn">Précisions (facultatif)</label><textarea id="dn" name="note" rows="2" [(ngModel)]="note" placeholder="Pour une demande de prêt bancaire…"></textarea></div>
+          <div class="full"><label for="dn">{{ 'docs.details' | t }}</label><textarea id="dn" name="note" rows="2" [(ngModel)]="note" [placeholder]="'docs.detailsPlaceholder' | t"></textarea></div>
         </div>
         <div class="formactions">
-          <button class="btn btn--ghost btn--sm" (click)="panelOpen.set(false)">Annuler</button>
+          <button class="btn btn--ghost btn--sm" (click)="panelOpen.set(false)">{{ 'common.cancel' | t }}</button>
           <button class="btn btn--primary btn--sm" (click)="submit()" [disabled]="submitting()">
-            @if (submitting()) { <span class="spinner" style="width:14px;height:14px;border-width:2px"></span> Envoi… }
-            @else { Envoyer la demande }
+            @if (submitting()) { <span class="spinner" style="width:14px;height:14px;border-width:2px"></span> {{ 'common.sending' | t }} }
+            @else { {{ 'common.submitRequest' | t }} }
           </button>
         </div>
       </div>
@@ -30,18 +30,18 @@
   </div>
 
   @if (loading()) {
-    <div class="card"><div class="loading"><span class="spinner"></span> Chargement…</div></div>
+    <div class="card"><div class="loading"><span class="spinner"></span> {{ 'common.loading' | t }}</div></div>
   } @else if (!requests().length) {
     <div class="card">
       <div class="empty">
-        <p>Aucune demande de document.</p>
-        <button class="btn btn--primary btn--sm" style="margin-top:10px" (click)="togglePanel()">Nouvelle demande</button>
+        <p>{{ 'docs.empty' | t }}</p>
+        <button class="btn btn--primary btn--sm" style="margin-top:10px" (click)="togglePanel()">{{ 'common.newRequest' | t }}</button>
       </div>
     </div>
   } @else {
     <div class="board">
       <div class="card">
-        <div class="card__hd"><h3>Chez la RH</h3></div>
+        <div class="card__hd"><h3>{{ 'docs.withRh' | t }}</h3></div>
         <div class="card__bd">
           @if (waiting().length) {
             <div class="board__list">
@@ -51,17 +51,20 @@
                     <div class="cell-strong">{{ typeLabel(r.doc_type) }}</div>
                     @if (r.note) { <div class="rl" style="color:var(--ink-3);font-size:.8rem">{{ r.note }}</div> }
                   </div>
-                  <span class="chip {{ chip(r.status) }}"><span class="d"></span>{{ label(r.status) }}</span>
+                  <div class="rowactions">
+                    <span class="chip {{ chip(r.status) }}"><span class="d"></span>{{ label(r.status) }}</span>
+                    <button class="btn btn--danger btn--sm" (click)="cancel(r)" [disabled]="busyId() === r.id">{{ 'common.cancel' | t }}</button>
+                  </div>
                 </div>
               }
             </div>
           } @else {
-            <div class="widget__ctx">Rien en cours.</div>
+            <div class="widget__ctx">{{ 'docs.nothingOpen' | t }}</div>
           }
         </div>
       </div>
       <div class="card">
-        <div class="card__hd"><h3>Prêts</h3></div>
+        <div class="card__hd"><h3>{{ 'docs.ready' | t }}</h3></div>
         <div class="card__bd">
           @if (ready().length) {
             <div class="board__list">
@@ -69,17 +72,36 @@
                 <div class="board-row">
                   <div class="cell-strong">{{ typeLabel(r.doc_type) }}</div>
                   <div class="rowactions">
-                    <button class="btn btn--ghost btn--sm" (click)="print(r)">Imprimer</button>
-                    <button class="btn btn--primary btn--sm" (click)="download(r)">Télécharger</button>
+                    <button class="btn btn--ghost btn--sm" (click)="print(r)">{{ 'common.print' | t }}</button>
+                    <button class="btn btn--primary btn--sm" (click)="download(r)">{{ 'common.download' | t }}</button>
                   </div>
                 </div>
               }
             </div>
           } @else {
-            <div class="widget__ctx">Aucun document à télécharger.</div>
+            <div class="widget__ctx">{{ 'docs.noReady' | t }}</div>
           }
         </div>
       </div>
     </div>
+    @if (closed().length) {
+      <div class="card" style="margin-top:16px">
+        <div class="card__hd"><h3>{{ 'docs.closed' | t }}</h3></div>
+        <div class="card__bd">
+          <div class="board__list">
+            @for (r of closed(); track r.id) {
+              <div class="board-row">
+                <div>
+                  <div class="cell-strong">{{ typeLabel(r.doc_type) }}</div>
+                  @if (r.decision_comment) { <div class="rl" style="color:var(--ink-3);font-size:.8rem">{{ r.decision_comment }}</div> }
+                  @else if (r.note) { <div class="rl" style="color:var(--ink-3);font-size:.8rem">{{ r.note }}</div> }
+                </div>
+                <span class="chip {{ chip(r.status) }}"><span class="d"></span>{{ label(r.status) }}</span>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    }
   }
 </section>

@@ -25,7 +25,13 @@ Rails.application.routes.draw do
     end
   end
 
-  get "notifications" => "notifications#index"
+  get "directory" => "directories#index"
+  resources :conversations, only: [:index, :create] do
+    resources :messages, only: [:index, :create] do
+      get :file, on: :member
+    end
+    post :read, on: :member
+  end
   patch "notifications/:id/read" => "notifications#read"
   post "internal/notifications" => "internal_notifications#create"
 end

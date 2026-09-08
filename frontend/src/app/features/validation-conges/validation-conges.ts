@@ -1,28 +1,29 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LeaveService } from '../../core/leave.service';
-import { TeamService } from '../../core/team.service';
-import { UserAdminService } from '../../core/user-admin.service';
 import { AuthService } from '../../core/auth.service';
 import { ToastService } from '../../core/toast.service';
-import { LeaveRequest, LeaveStatus, TeamMember } from '../../core/models';
-import { avatarClass, frRange, fullName, initials, jobTitleOf, workingDays } from '../../core/format';
-import { LEAVE_STATUS_CHIP, LEAVE_STATUS_LABEL } from '../../core/labels';
+import { PeopleService } from '../../core/people.service';
+import { I18nService } from '../../core/i18n.service';
+import { TranslatePipe } from '../../core/translate.pipe';
+import { LeaveRequest, LeaveStatus } from '../../core/models';
+import { avatarClass, workingDays } from '../../core/format';
+import { LEAVE_STATUS_CHIP } from '../../core/labels';
 import { StepTracker } from '../../shared/step-tracker';
 
 type Filter = 'pending' | 'all';
 
 @Component({
   selector: 'app-validation-conges',
-  imports: [FormsModule, StepTracker],
+  imports: [FormsModule, StepTracker, TranslatePipe],
   templateUrl: './validation-conges.html',
 })
 export class ValidationConges {
   private leave = inject(LeaveService);
-  private team = inject(TeamService);
-  private userAdmin = inject(UserAdminService);
+  private people = inject(PeopleService);
   private auth = inject(AuthService);
   private toast = inject(ToastService);
+  private i18n = inject(I18nService);
 
   protected loading = signal(true);
   protected filter = signal<Filter>('pending');
@@ -32,38 +33,33 @@ export class ValidationConges {
   protected rejectComment = '';
   protected role = this.auth.user()?.role ?? '';
 
-  // user_id -> { name, initials, avatar } for the people this approver can see.
-  private people = signal<Map<number, TeamMember>>(new Map());
-
   protected pendingCount = computed(
     () => this.requests().filter((r) => this.isActionable(r)).length,
   );
 
   protected chip = (s: LeaveRequest['status']) => LEAVE_STATUS_CHIP[s] ?? 'mut';
-  protected label = (s: LeaveRequest['status']) => LEAVE_STATUS_LABEL[s] ?? s;
-  protected range = (r: LeaveRequest) => frRange(r.start_date, r.end_date);
+  protected label = (s: LeaveRequest['status']) => this.i18n.t(`status.leave.${s}`);
+  protected range = (r: LeaveRequest) => this.i18n.formatRange(r.start_date, r.end_date);
   protected days = (r: LeaveRequest) => r.days ?? workingDays(r.start_date, r.end_date);
-  protected intro = this.role === 'rh'
-    ? 'Confirmez ou refusez les demandes déjà acceptées par le manager. Seule votre confirmation pose le congé.'
-    : 'Approuvez ou refusez les demandes de votre équipe. Votre accord transmet la demande à la RH ; le solde n’est débité qu’après validation RH.';
-  protected scopeLabel = this.role === 'manager' ? 'Équipe' : 'Entreprise';
-  protected scopeSub = this.role === 'manager' ? 'Demandes que vous gérez' : 'Demandes à confirmer';
-  protected queueTitle =
-    this.role === 'rh' ? 'En attente RH' : this.role === 'admin' ? 'Files manager et RH' : 'En attente manager';
+  protected intro = (): string =>
+    this.i18n.t(this.role === 'rh' ? 'leaveReview.introRh' : 'leaveReview.introManager');
+  protected scopeLabel = (): string =>
+    this.i18n.t(this.role === 'manager' ? 'leaveReview.scopeTeam' : 'leaveReview.scopeCompany');
+  protected scopeSub = (): string =>
+    this.i18n.t(this.role === 'manager' ? 'leaveReview.scopeTeamSub' : 'leaveReview.scopeCompanySub');
+  protected queueTitle = (): string => {
+    if (this.role === 'rh') return this.i18n.t('leaveReview.queueRh');
+    if (this.role === 'admin') return this.i18n.t('leaveReview.queueAdmin');
+    return this.i18n.t('leaveReview.queueManager');
+  };
 
-  protected nameFor = (userId: number): string => {
-    const m = this.people().get(userId);
-    return m ? fullName(m) : `Utilisateur #${userId}`;
-  };
-  protected jobTitleFor = (userId: number): string | null => jobTitleOf(this.people().get(userId));
-  protected initialsFor = (userId: number): string => {
-    const m = this.people().get(userId);
-    return m ? initials(m) : '?';
-  };
+  protected nameFor = (userId: number): string => this.people.nameOf(userId);
+  protected jobTitleFor = (userId: number): string | null => this.people.jobTitleOf(userId);
+  protected initialsFor = (userId: number): string => this.people.initialsOf(userId);
   protected avatarFor = (userId: number): string => avatarClass(userId);
 
   constructor() {
-    this.loadPeople();
+    this.people.load().subscribe();
     this.reload();
   }
 
@@ -86,15 +82,16 @@ export class ValidationConges {
       next: (updated) => {
         this.busyId.set(null);
         this.applyDecision(updated);
+        const name = this.nameFor(r.user_id);
         this.toast.show(
           updated.status === 'pending_hr'
-            ? `Demande transmise à la RH pour ${this.nameFor(r.user_id)}`
-            : `Congé confirmé pour ${this.nameFor(r.user_id)}`,
+            ? this.i18n.t('leaveReview.forwarded', { name })
+            : this.i18n.t('leaveReview.confirmed', { name }),
         );
       },
       error: (err) => {
         this.busyId.set(null);
-        this.toast.show(this.errorText(err, 'Approbation refusée'));
+        this.toast.show(this.errorText(err, this.i18n.t('leaveReview.approveFail')));
       },
     });
   }
@@ -113,11 +110,11 @@ export class ValidationConges {
         this.busyId.set(null);
         this.rejectingId.set(null);
         this.applyDecision(updated);
-        this.toast.show(`Congé refusé pour ${this.nameFor(r.user_id)}`);
+        this.toast.show(this.i18n.t('leaveReview.rejectedFor', { name: this.nameFor(r.user_id) }));
       },
       error: (err) => {
         this.busyId.set(null);
-        this.toast.show(this.errorText(err, 'Refus impossible'));
+        this.toast.show(this.errorText(err, this.i18n.t('leaveReview.rejectFail')));
       },
     });
   }
@@ -147,46 +144,6 @@ export class ValidationConges {
     if (this.role === 'rh') return ['pending_hr'];
     if (this.role === 'manager') return ['pending'];
     return ['pending', 'pending_hr'];
-  }
-
-  // Resolve names from whatever this role is allowed to read: admins and RH can
-  // list every user; managers use their own team roster.
-  private loadPeople(): void {
-    const me = this.auth.user();
-    const map = new Map<number, TeamMember>();
-    const add = (m: TeamMember) => map.set(m.id, m);
-
-    if (me?.role === 'admin' || me?.role === 'rh') {
-      this.userAdmin.list().subscribe((users) => {
-        users.forEach((u) =>
-          add({
-            id: u.id,
-            email: u.email,
-            first_name: u.first_name ?? null,
-            last_name: u.last_name ?? null,
-            role: u.role,
-            job_title: u.job_title ?? null,
-          }),
-        );
-        this.people.set(new Map(map));
-      });
-      return;
-    }
-
-    if (me) {
-      add({
-        id: me.id,
-        email: me.email,
-        first_name: me.first_name ?? null,
-        last_name: me.last_name ?? null,
-        role: me.role,
-        job_title: me.job_title ?? null,
-      });
-    }
-    this.team.getMine().subscribe((res) => {
-      (res.members ?? []).forEach(add);
-      this.people.set(new Map(map));
-    });
   }
 
   private errorText(err: unknown, fallback: string): string {

@@ -2,16 +2,20 @@ import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
+import { I18nService } from '../../core/i18n.service';
+import { TranslatePipe } from '../../core/translate.pipe';
+import { LangSwitcher } from '../../shared/lang-switcher';
 
 @Component({
   selector: 'app-login',
-  imports: [FormsModule],
+  imports: [FormsModule, TranslatePipe, LangSwitcher],
   templateUrl: './login.html',
   styleUrl: './login.css',
 })
 export class Login {
   private auth = inject(AuthService);
   private router = inject(Router);
+  private i18n = inject(I18nService);
 
   email = 'employee@rh.local';
   password = 'password';
@@ -36,8 +40,8 @@ export class Login {
         this.loading.set(false);
         this.error.set(
           err?.status === 0
-            ? "Impossible de joindre le serveur. La passerelle est-elle démarrée ?"
-            : 'E-mail ou mot de passe incorrect.',
+            ? this.i18n.t('login.offline')
+            : this.i18n.t('login.badCredentials'),
         );
       },
     });

@@ -1,17 +1,21 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { FullCalendarModule } from '@fullcalendar/angular';
 import { CalendarOptions, DatesSetArg, EventInput } from '@fullcalendar/core';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin, { DateClickArg } from '@fullcalendar/interaction';
 import frLocale from '@fullcalendar/core/locales/fr';
+import enGbLocale from '@fullcalendar/core/locales/en-gb';
+import arLocale from '@fullcalendar/core/locales/ar';
 import { TeamService } from '../../core/team.service';
 import { ScheduleService } from '../../core/schedule.service';
 import { AuthService } from '../../core/auth.service';
 import { ToastService } from '../../core/toast.service';
+import { I18nService } from '../../core/i18n.service';
+import { TranslatePipe } from '../../core/translate.pipe';
 import { DeclarableStatus, PresenceStatus, ScheduleEntry, TeamMember } from '../../core/models';
 import { avatarClass, fullName, initials, jobTitleOf } from '../../core/format';
-import { PRESENCE_CHIP, PRESENCE_LABEL } from '../../core/labels';
+import { PRESENCE_CHIP } from '../../core/labels';
 
 interface MemberCard {
   id: number;
@@ -23,9 +27,10 @@ interface MemberCard {
   av: string;
   status: PresenceStatus;
   chip: string;
-  statusLabel: string;
   isMe: boolean;
 }
+
+const FC_LOCALES = { fr: frLocale, en: enGbLocale, ar: arLocale };
 
 // Only remote & holiday are drawn on the calendar; on-site is the implicit
 // default (a day with no chip = everyone is on site). Colours reference the
@@ -37,7 +42,7 @@ const EVENT_STYLE: Record<'remote' | 'holiday', { bg: string; fg: string }> = {
 
 @Component({
   selector: 'app-equipe',
-  imports: [FullCalendarModule, FormsModule],
+  imports: [FullCalendarModule, FormsModule, TranslatePipe],
   templateUrl: './equipe.html',
 })
 export class Equipe {
@@ -45,6 +50,7 @@ export class Equipe {
   private schedule = inject(ScheduleService);
   private auth = inject(AuthService);
   private toast = inject(ToastService);
+  private i18n = inject(I18nService);
 
   protected loading = signal(true);
   protected teamName = signal<string>('');
@@ -82,9 +88,15 @@ export class Equipe {
   });
 
   constructor() {
+    effect(() => {
+      const lang = this.i18n.lang();
+      this.calendarOptions.update((o) => ({ ...o, locale: FC_LOCALES[lang] }));
+      this.rebuildEvents();
+    });
+
     this.team.getMine().subscribe({
       next: (res) => {
-        this.teamName.set(res.team?.name ?? 'Sans équipe');
+        this.teamName.set(res.team?.name ?? this.i18n.t('team.noTeam'));
         this.hasTeam.set(!!res.team);
         const me = this.auth.user();
         this.meId = me?.id ?? 0;
@@ -130,12 +142,13 @@ export class Equipe {
 
   private rebuildEvents(): void {
     const events: EventInput[] = [];
+    const fallback = this.i18n.t('team.member');
     for (const [key, status] of this.stateMap) {
       if (status === 'on_site') continue;
       const [userId, date] = key.split('|');
       const style = EVENT_STYLE[status];
       events.push({
-        title: this.shortNames.get(Number(userId)) ?? 'Membre',
+        title: this.shortNames.get(Number(userId)) ?? fallback,
         start: date,
         allDay: true,
         backgroundColor: style.bg,
@@ -161,7 +174,6 @@ export class Equipe {
           av: avatarClass(m.id),
           status,
           chip: PRESENCE_CHIP[status],
-          statusLabel: PRESENCE_LABEL[status],
           isMe: m.id === this.meId,
         };
       }),
@@ -194,12 +206,12 @@ export class Equipe {
         next: () => {
           this.submitting.set(false);
           this.panelOpen.set(false);
-          this.toast.show('Présence enregistrée');
+          this.toast.show(this.i18n.t('team.saved'));
           this.reloadCurrent();
         },
         error: () => {
           this.submitting.set(false);
-          this.toast.show("Échec de l'enregistrement");
+          this.toast.show(this.i18n.t('team.saveFail'));
         },
       });
   }

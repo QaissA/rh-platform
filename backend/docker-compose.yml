@@ -46,6 +46,14 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   # ---- Application services ----------------------------------------------
   auth-service:
     build:
@@ -56,8 +64,11 @@ services:
       JWT_SECRET: ${JWT_SECRET:-dev-insecure-secret-change-me}
       INTERNAL_TOKEN: ${INTERNAL_TOKEN:-dev-internal-token}
       DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres-auth:5432/auth_service_development
+      REDIS_URL: redis://redis:6379/1
     depends_on:
       postgres-auth:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   leave-service:
@@ -98,12 +109,18 @@ services:
       AUTH_SERVICE_URL: http://auth-service:3000
       LEAVE_SERVICE_URL: http://leave-service:3000
       ADMIN_DOC_SERVICE_URL: http://admin-doc-service:3000
+      REDIS_URL: redis://redis:6379/1
     ports:
       - "3000:3000"
     depends_on:
-      - auth-service
-      - leave-service
-      - admin-doc-service
+      redis:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+      leave-service:
+        condition: service_started
+      admin-doc-service:
+        condition: service_started
 
 volumes:
   pg_auth:

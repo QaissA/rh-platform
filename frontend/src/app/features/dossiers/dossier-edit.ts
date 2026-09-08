@@ -4,12 +4,14 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ProfileService } from '../../core/profile.service';
 import { UserAdminService } from '../../core/user-admin.service';
 import { ToastService } from '../../core/toast.service';
+import { I18nService } from '../../core/i18n.service';
+import { TranslatePipe } from '../../core/translate.pipe';
 import { ContractType, UserDossier } from '../../core/models';
-import { CONTRACT_LABEL } from '../../core/labels';
+import { CONTRACT_TYPES } from '../../core/labels';
 
 @Component({
   selector: 'app-dossier-edit',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, TranslatePipe],
   templateUrl: './dossier-edit.html',
 })
 export class DossierEdit {
@@ -17,6 +19,7 @@ export class DossierEdit {
   private profiles = inject(ProfileService);
   private usersApi = inject(UserAdminService);
   private toast = inject(ToastService);
+  private i18n = inject(I18nService);
 
   protected loading = signal(true);
   protected saving = signal(false);
@@ -37,8 +40,8 @@ export class DossierEdit {
   protected hiredOn = '';
   protected iban = '';
 
-  protected contracts = Object.keys(CONTRACT_LABEL);
-  protected contractLabel = (c: string) => CONTRACT_LABEL[c] ?? c;
+  protected contracts = CONTRACT_TYPES;
+  protected contractLabel = (c: string) => this.i18n.t('status.contract.' + c);
 
   constructor() {
     const id = Number(this.route.snapshot.paramMap.get('id'));
@@ -88,11 +91,11 @@ export class DossierEdit {
         next: (updated) => {
           this.dossier.set(updated);
           this.saving.set(false);
-          this.toast.show('Dossier enregistré');
+          this.toast.show(this.i18n.t('dossiers.saved'));
         },
         error: () => {
           this.saving.set(false);
-          this.toast.show('Enregistrement impossible');
+          this.toast.show(this.i18n.t('dossiers.saveFail'));
         },
       });
   }
@@ -105,11 +108,11 @@ export class DossierEdit {
       next: (res) => {
         this.resetting.set(false);
         this.tempPassword.set(res.temporary_password);
-        this.toast.show('Mot de passe temporaire généré');
+        this.toast.show(this.i18n.t('dossiers.tempGenerated'));
       },
       error: () => {
         this.resetting.set(false);
-        this.toast.show('Réinitialisation impossible');
+        this.toast.show(this.i18n.t('dossiers.resetFail'));
       },
     });
   }
@@ -122,11 +125,11 @@ export class DossierEdit {
       next: (updated) => {
         this.dossier.set(updated);
         this.unlocking.set(false);
-        this.toast.show('L’employé·e peut dessiner une nouvelle signature');
+        this.toast.show(this.i18n.t('dossiers.unlocked'));
       },
       error: () => {
         this.unlocking.set(false);
-        this.toast.show('Déverrouillage impossible');
+        this.toast.show(this.i18n.t('dossiers.unlockFail'));
       },
     });
   }

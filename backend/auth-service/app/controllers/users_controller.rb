@@ -50,56 +50,24 @@ class UsersController < ApplicationController
   end
 
   def accept_job_title
-    pending = @user.pending_job_title.to_s.strip
-    return render json: { error: "Aucune demande de poste en attente" }, status: :unprocessable_content if pending.blank?
-
-    @user.job_title = pending
-    @user.pending_job_title = nil
-    @user.save!
-    notify_user!(
-      @user,
-      kind: "job_title_approved",
-      title: "Votre poste a été confirmé",
-      body: "La RH a validé le poste « #{@user.job_title} ».",
-      link: "/parametres",
-    )
+    JobTitles::Accept.call(@user)
     render json: dossier_json(@user)
+  rescue JobTitles::Accept::Error => e
+    render json: { error: e.message }, status: :unprocessable_content
   end
 
   def reject_job_title
-    pending = @user.pending_job_title.to_s.strip
-    return render json: { error: "Aucune demande de poste en attente" }, status: :unprocessable_content if pending.blank?
-
-    @user.pending_job_title = nil
-    @user.save!
-    comment = params[:comment].to_s.strip
-    body = "La RH a refusé la demande de poste « #{pending} »."
-    body = "#{body} Motif : #{comment}" if comment.present?
-    notify_user!(
-      @user,
-      kind: "job_title_rejected",
-      title: "Demande de poste refusée",
-      body: body,
-      link: "/parametres",
-    )
+    JobTitles::Reject.call(@user, comment: params[:comment])
     render json: dossier_json(@user)
+  rescue JobTitles::Reject::Error => e
+    render json: { error: e.message }, status: :unprocessable_content
   end
 
   def unlock_signature
-    unless @user.signature_png.present?
-      return render json: { error: "Aucune signature à déverrouiller" }, status: :unprocessable_content
-    end
-
-    @user.signature_locked = false
-    @user.save!
-    notify_user!(
-      @user,
-      kind: "signature_unlocked",
-      title: "Vous pouvez mettre à jour votre signature",
-      body: "La RH a autorisé une nouvelle signature. Rendez-vous dans Paramètres.",
-      link: "/parametres",
-    )
+    Signatures::Unlock.call(@user)
     render json: dossier_json(@user)
+  rescue Signatures::Unlock::Error => e
+    render json: { error: e.message }, status: :unprocessable_content
   end
 
   def reset_password

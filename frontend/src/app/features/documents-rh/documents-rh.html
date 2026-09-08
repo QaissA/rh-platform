@@ -1,72 +1,104 @@
 <section class="view">
   <div class="sectionhead">
     <div>
-      <h3>Documents à traiter</h3>
-      <p>Rédigez l’attestation à partir du modèle, imprimez-la, puis mettez-la à disposition du collaborateur.</p>
+      <h3>{{ 'docsRh.title' | t }}</h3>
+      <p>{{ 'docsRh.help' | t }}</p>
     </div>
     <div style="display:flex;gap:8px">
-      <button class="btn btn--sm" [class.btn--primary]="filter() === 'open'" [class.btn--ghost]="filter() !== 'open'" (click)="setFilter('open')">À traiter</button>
-      <button class="btn btn--sm" [class.btn--primary]="filter() === 'all'" [class.btn--ghost]="filter() !== 'all'" (click)="setFilter('all')">Toutes</button>
+      <button class="btn btn--sm" [class.btn--primary]="filter() === 'open'" [class.btn--ghost]="filter() !== 'open'" (click)="setFilter('open')">{{ 'docsRh.open' | t }}</button>
+      <button class="btn btn--sm" [class.btn--primary]="filter() === 'all'" [class.btn--ghost]="filter() !== 'all'" (click)="setFilter('all')">{{ 'docsRh.all' | t }}</button>
     </div>
   </div>
 
   <div class="grid kpis" style="grid-template-columns:repeat(2,1fr);margin-bottom:18px;">
-    <div class="card tile"><div class="fig">{{ openCount() }} <small>à traiter</small></div><div class="sub">En attente ou en rédaction</div></div>
-    <div class="card tile"><div class="fig">{{ requests().length }}</div><div class="sub">{{ filter() === 'open' ? 'À traiter' : 'Toutes' }}</div></div>
+    <div class="card tile"><div class="fig">{{ openCount() }} <small>{{ 'docsRh.openCount' | t }}</small></div><div class="sub">{{ 'docsRh.openSub' | t }}</div></div>
+    <div class="card tile"><div class="fig">{{ requests().length }}</div><div class="sub">{{ filter() === 'open' ? ('docsRh.open' | t) : ('docsRh.all' | t) }}</div></div>
   </div>
 
   @if (loading()) {
-    <div class="card"><div class="loading"><span class="spinner"></span> Chargement des demandes…</div></div>
+    <div class="card"><div class="loading"><span class="spinner"></span> {{ 'docsRh.loading' | t }}</div></div>
   } @else if (filter() === 'all') {
     <div class="board">
       <div class="card">
-        <div class="card__hd"><h3>À traiter</h3></div>
+        <div class="card__hd"><h3>{{ 'docsRh.open' | t }}</h3></div>
         @if (openRows().length) {
           <div class="tablewrap">
             <table>
-              <thead><tr><th>Collaborateur·rice</th><th>Document</th><th></th></tr></thead>
+              <thead><tr><th>{{ 'common.employee' | t }}</th><th>{{ 'common.document' | t }}</th><th></th></tr></thead>
               <tbody>
                 @for (r of openRows(); track r.id) {
                   <tr>
                     <td class="cell-strong">{{ nameFor(r.user_id) }}@if (jobTitleFor(r.user_id); as t) { <span class="jobtitle">{{ t }}</span> }</td>
                     <td>{{ typeLabel(r.doc_type) }}</td>
-                    <td style="text-align:right"><a class="btn btn--ghost btn--sm" [routerLink]="['/documents-rh', r.id]">Rédiger</a></td>
+                    <td style="text-align:right">
+                      <div class="rowactions">
+                        @if (rejectingId() === r.id) {
+                          <input name="rc{{ r.id }}" [(ngModel)]="rejectComment" [placeholder]="'common.rejectReason' | t"
+                                 style="padding:6px 10px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);color:var(--ink);font-size:.82rem;min-width:180px" />
+                          <button class="btn btn--danger btn--sm" (click)="confirmReject(r)" [disabled]="busyId() === r.id">{{ 'common.confirm' | t }}</button>
+                          <button class="btn btn--ghost btn--sm" (click)="cancelReject()">{{ 'common.cancel' | t }}</button>
+                        } @else {
+                          <a class="btn btn--ghost btn--sm" [routerLink]="['/documents-rh', r.id]">{{ 'docsRh.draft' | t }}</a>
+                          <button class="btn btn--danger btn--sm" (click)="askReject(r.id)" [disabled]="busyId() === r.id">{{ 'common.reject' | t }}</button>
+                        }
+                      </div>
+                    </td>
                   </tr>
                 }
               </tbody>
             </table>
           </div>
         } @else {
-          <div class="empty"><p>Aucune demande à traiter.</p></div>
+          <div class="empty"><p>{{ 'docsRh.emptyOpen' | t }}</p></div>
         }
       </div>
       <div class="card">
-        <div class="card__hd"><h3>Prêts</h3></div>
+        <div class="card__hd"><h3>{{ 'docsRh.ready' | t }}</h3></div>
         @if (readyRows().length) {
           <div class="tablewrap">
             <table>
-              <thead><tr><th>Collaborateur·rice</th><th>Document</th><th></th></tr></thead>
+              <thead><tr><th>{{ 'common.employee' | t }}</th><th>{{ 'common.document' | t }}</th><th></th></tr></thead>
               <tbody>
                 @for (r of readyRows(); track r.id) {
                   <tr>
                     <td class="cell-strong">{{ nameFor(r.user_id) }}@if (jobTitleFor(r.user_id); as t) { <span class="jobtitle">{{ t }}</span> }</td>
                     <td>{{ typeLabel(r.doc_type) }}</td>
-                    <td style="text-align:right"><a class="btn btn--ghost btn--sm" [routerLink]="['/documents-rh', r.id]">Ouvrir</a></td>
+                    <td style="text-align:right"><a class="btn btn--ghost btn--sm" [routerLink]="['/documents-rh', r.id]">{{ 'common.open' | t }}</a></td>
                   </tr>
                 }
               </tbody>
             </table>
           </div>
         } @else {
-          <div class="empty"><p>Aucun document mis à disposition.</p></div>
+          <div class="empty"><p>{{ 'docsRh.emptyReady' | t }}</p></div>
         }
       </div>
     </div>
+    @if (closedRows().length) {
+      <div class="card" style="margin-top:16px">
+        <div class="card__hd"><h3>{{ 'docsRh.closed' | t }}</h3></div>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>{{ 'common.employee' | t }}</th><th>{{ 'common.document' | t }}</th><th>{{ 'common.status' | t }}</th><th>{{ 'docsRh.reason' | t }}</th></tr></thead>
+            <tbody>
+              @for (r of closedRows(); track r.id) {
+                <tr>
+                  <td class="cell-strong">{{ nameFor(r.user_id) }}@if (jobTitleFor(r.user_id); as t) { <span class="jobtitle">{{ t }}</span> }</td>
+                  <td>{{ typeLabel(r.doc_type) }}</td>
+                  <td><span class="chip {{ chip(r.status) }}"><span class="d"></span>{{ label(r.status) }}</span></td>
+                  <td style="color:var(--ink-3);font-size:.82rem">{{ r.decision_comment || ('common.dash' | t) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
   } @else if (requests().length) {
     <div class="card">
       <div class="tablewrap">
         <table>
-          <thead><tr><th>Collaborateur·rice</th><th>Document</th><th>Statut</th><th style="text-align:right">Action</th></tr></thead>
+          <thead><tr><th>{{ 'common.employee' | t }}</th><th>{{ 'common.document' | t }}</th><th>{{ 'common.status' | t }}</th><th style="text-align:right">{{ 'common.action' | t }}</th></tr></thead>
           <tbody>
             @for (r of requests(); track r.id) {
               <tr>
@@ -74,7 +106,17 @@
                 <td>{{ typeLabel(r.doc_type) }}<br><span class="rl" style="font-weight:400;color:var(--ink-3);font-size:.8rem">{{ r.note }}</span></td>
                 <td><span class="chip {{ chip(r.status) }}"><span class="d"></span>{{ label(r.status) }}</span></td>
                 <td style="text-align:right">
-                  <a class="btn btn--ghost btn--sm" [routerLink]="['/documents-rh', r.id]">Rédiger</a>
+                  <div class="rowactions">
+                    @if (rejectingId() === r.id) {
+                      <input name="rc{{ r.id }}" [(ngModel)]="rejectComment" [placeholder]="'common.rejectReason' | t"
+                             style="padding:6px 10px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);color:var(--ink);font-size:.82rem;min-width:180px" />
+                      <button class="btn btn--danger btn--sm" (click)="confirmReject(r)" [disabled]="busyId() === r.id">{{ 'common.confirm' | t }}</button>
+                      <button class="btn btn--ghost btn--sm" (click)="cancelReject()">{{ 'common.cancel' | t }}</button>
+                    } @else {
+                      <a class="btn btn--ghost btn--sm" [routerLink]="['/documents-rh', r.id]">{{ 'docsRh.draft' | t }}</a>
+                      <button class="btn btn--danger btn--sm" (click)="askReject(r.id)" [disabled]="busyId() === r.id">{{ 'common.reject' | t }}</button>
+                    }
+                  </div>
                 </td>
               </tr>
             }
@@ -85,7 +127,7 @@
   } @else {
     <div class="card">
       <div class="empty">
-        <p>Aucune demande à traiter.</p>
+        <p>{{ 'docsRh.emptyOpen' | t }}</p>
       </div>
     </div>
   }

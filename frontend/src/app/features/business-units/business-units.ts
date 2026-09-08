@@ -3,18 +3,21 @@ import { FormsModule } from '@angular/forms';
 import { BusinessUnitAdminService } from '../../core/business-unit-admin.service';
 import { UserAdminService } from '../../core/user-admin.service';
 import { ToastService } from '../../core/toast.service';
+import { I18nService } from '../../core/i18n.service';
+import { TranslatePipe } from '../../core/translate.pipe';
 import { BusinessUnit, User } from '../../core/models';
 import { fullName } from '../../core/format';
 
 @Component({
   selector: 'app-business-units',
-  imports: [FormsModule],
+  imports: [FormsModule, TranslatePipe],
   templateUrl: './business-units.html',
 })
 export class BusinessUnits {
   private api = inject(BusinessUnitAdminService);
   private userApi = inject(UserAdminService);
   private toast = inject(ToastService);
+  private i18n = inject(I18nService);
 
   protected loading = signal(true);
   protected submitting = signal(false);
@@ -26,7 +29,6 @@ export class BusinessUnits {
   protected editingId = signal<number | null>(null);
   protected editName = '';
 
-  // create form
   protected name = '';
   protected managerId = '';
 
@@ -55,12 +57,12 @@ export class BusinessUnits {
         this.panelOpen.set(false);
         this.name = '';
         this.managerId = '';
-        this.toast.show('Business unit créée');
+        this.toast.show(this.i18n.t('units.created'));
         this.reload();
       },
       error: (err) => {
         this.submitting.set(false);
-        this.toast.show(this.errorText(err, 'Échec de la création'));
+        this.toast.show(this.errorText(err, 'units.createFail'));
       },
     });
   }
@@ -73,11 +75,11 @@ export class BusinessUnits {
       next: (updated) => {
         this.busyId.set(null);
         this.replace(updated);
-        this.toast.show(`Manager mis à jour pour ${updated.name}`);
+        this.toast.show(this.i18n.t('units.managerUpdated', { name: updated.name }));
       },
       error: (err) => {
         this.busyId.set(null);
-        this.toast.show(this.errorText(err, 'Assignation refusée'));
+        this.toast.show(this.errorText(err, 'units.assignFail'));
         this.reload();
       },
     });
@@ -102,11 +104,11 @@ export class BusinessUnits {
         this.busyId.set(null);
         this.editingId.set(null);
         this.replace(updated);
-        this.toast.show('Business unit renommée');
+        this.toast.show(this.i18n.t('units.renamed'));
       },
       error: (err) => {
         this.busyId.set(null);
-        this.toast.show(this.errorText(err, 'Renommage refusé'));
+        this.toast.show(this.errorText(err, 'units.renameFail'));
       },
     });
   }
@@ -124,12 +126,12 @@ export class BusinessUnits {
         this.busyId.set(null);
         this.confirmId.set(null);
         this.units.update((list) => list.filter((b) => b.id !== unit.id));
-        this.toast.show(`Business unit « ${unit.name} » supprimée`);
+        this.toast.show(this.i18n.t('units.deleted', { name: unit.name }));
       },
       error: (err) => {
         this.busyId.set(null);
         this.confirmId.set(null);
-        this.toast.show(this.errorText(err, 'Suppression refusée'));
+        this.toast.show(this.errorText(err, 'units.deleteFail'));
       },
     });
   }
@@ -159,8 +161,8 @@ export class BusinessUnits {
     return value ? Number(value) : null;
   }
 
-  private errorText(err: unknown, fallback: string): string {
+  private errorText(err: unknown, fallbackKey: string): string {
     const e = err as { error?: { error?: string; errors?: string[] } };
-    return e?.error?.error || e?.error?.errors?.join(', ') || fallback;
+    return e?.error?.error || e?.error?.errors?.join(', ') || this.i18n.t(fallbackKey);
   }
 }

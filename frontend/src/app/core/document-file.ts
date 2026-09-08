@@ -1,47 +1,57 @@
 import { DocumentRequest } from './models';
-import { DOC_TYPE_LABEL } from './labels';
-import { frDate } from './format';
+import { I18nService } from './i18n.service';
 
 function f(doc: DocumentRequest, key: string): string {
   return doc.fields?.[key] ?? '';
 }
 
-function pretty(doc: DocumentRequest, key: string): string {
+function pretty(doc: DocumentRequest, key: string, i18n: I18nService): string {
   const raw = f(doc, key);
-  if (!raw) return '………………';
-  return key.endsWith('_date') || key === 'leave_start' || key === 'leave_end' ? frDate(raw) : raw;
+  if (!raw) return i18n.t('docSheet.blank');
+  return key.endsWith('_date') || key === 'leave_start' || key === 'leave_end' ? i18n.formatDate(raw) : raw;
 }
 
-function titleOf(doc: DocumentRequest): string {
-  return f(doc, 'title') || DOC_TYPE_LABEL[doc.doc_type] || 'Document';
+function titleOf(doc: DocumentRequest, i18n: I18nService): string {
+  return f(doc, 'title') || i18n.t(`docType.${doc.doc_type}`) || i18n.t('common.document');
 }
 
-function bodyHtml(doc: DocumentRequest): string {
-  const p = (key: string) => escapeHtml(pretty(doc, key));
+function bodyHtml(doc: DocumentRequest, i18n: I18nService): string {
+  const p = (key: string) => escapeHtml(pretty(doc, key, i18n));
+  const company = `<strong>${p('company')}</strong>`;
   switch (doc.doc_type) {
     case 'work_certificate':
       return `
-        <p>Nous soussignés, <strong>${p('company')}</strong>, certifions que</p>
+        <p>${i18n.t('docSheet.weCertify', { company })}</p>
         <p class="name">${p('employee_name')}</p>
-        <p>occupe le poste de <strong>${p('job_title')}</strong>${f(doc, 'start_date') ? ` depuis le <strong>${p('start_date')}</strong>` : ''}.</p>
-        ${f(doc, 'purpose') ? `<p>La présente attestation est délivrée pour : ${escapeHtml(f(doc, 'purpose'))}.</p>` : ''}
+        <p>${i18n.t('docSheet.occupies', { title: `<strong>${p('job_title')}</strong>` })}${
+          f(doc, 'start_date') ? ` ${i18n.t('docSheet.since', { date: `<strong>${p('start_date')}</strong>` })}` : ''
+        }.</p>
+        ${f(doc, 'purpose') ? `<p>${i18n.t('docSheet.issuedFor', { purpose: escapeHtml(f(doc, 'purpose')) })}</p>` : ''}
       `;
     case 'salary_certificate':
       return `
-        <p>Nous soussignés, <strong>${p('company')}</strong>, certifions que</p>
+        <p>${i18n.t('docSheet.weCertify', { company })}</p>
         <p class="name">${p('employee_name')}</p>
-        <p>occupant le poste de <strong>${p('job_title')}</strong>, a perçu au titre de la période <strong>${p('period')}</strong> un salaire net de <strong>${p('net_salary')}</strong>.</p>
+        <p>${i18n.t('docSheet.occupying', {
+          title: `<strong>${p('job_title')}</strong>`,
+          period: `<strong>${p('period')}</strong>`,
+          salary: `<strong>${p('net_salary')}</strong>`,
+        })}</p>
       `;
     case 'leave_attestation':
       return `
-        <p>Nous soussignés, <strong>${p('company')}</strong>, certifions que</p>
+        <p>${i18n.t('docSheet.weCertify', { company })}</p>
         <p class="name">${p('employee_name')}</p>
-        <p>a bénéficié d’un congé de type <strong>${p('leave_type')}</strong> du <strong>${p('leave_start')}</strong> au <strong>${p('leave_end')}</strong>${f(doc, 'days') ? `, soit <strong>${escapeHtml(f(doc, 'days'))}</strong> jour(s)` : ''}.</p>
+        <p>${i18n.t('docSheet.hadLeave', {
+          type: `<strong>${p('leave_type')}</strong>`,
+          start: `<strong>${p('leave_start')}</strong>`,
+          end: `<strong>${p('leave_end')}</strong>`,
+        })}${f(doc, 'days') ? i18n.t('docSheet.daysWorth', { days: `<strong>${escapeHtml(f(doc, 'days'))}</strong>` }) : ''}.</p>
       `;
     default:
       return `
         <p class="name">${p('employee_name')}</p>
-        <p style="white-space:pre-wrap">${escapeHtml(f(doc, 'body') || '………………')}</p>
+        <p style="white-space:pre-wrap">${escapeHtml(f(doc, 'body') || i18n.t('docSheet.blank'))}</p>
       `;
   }
 }
@@ -54,32 +64,32 @@ function escapeHtml(value: string): string {
     .replace(/"/g, '&quot;');
 }
 
-export function documentFileName(doc: DocumentRequest): string {
-  const slug = (DOC_TYPE_LABEL[doc.doc_type] ?? 'document')
+export function documentFileName(doc: DocumentRequest, i18n: I18nService): string {
+  const slug = (i18n.t(`docType.${doc.doc_type}`) || 'document')
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
-  return `${slug}-${doc.id}.pdf`;
+  return `${slug || 'document'}-${doc.id}.pdf`;
 }
 
-function sheetMarkup(doc: DocumentRequest): string {
-  const issued = f(doc, 'issued_date') ? frDate(f(doc, 'issued_date')) : '………………';
+function sheetMarkup(doc: DocumentRequest, i18n: I18nService): string {
+  const issued = f(doc, 'issued_date') ? i18n.formatDate(f(doc, 'issued_date')) : i18n.t('docSheet.blank');
   return `
     <article class="sheet">
       <header class="brand">
         <div>
-          <div class="co">${escapeHtml(pretty(doc, 'company'))}</div>
-          <div class="tag">Ressources humaines</div>
+          <div class="co">${escapeHtml(pretty(doc, 'company', i18n))}</div>
+          <div class="tag">${escapeHtml(i18n.t('docSheet.hr'))}</div>
         </div>
       </header>
-      <h1>${escapeHtml(titleOf(doc))}</h1>
-      ${bodyHtml(doc)}
-      <p>Fait pour valoir ce que de droit.</p>
+      <h1>${escapeHtml(titleOf(doc, i18n))}</h1>
+      ${bodyHtml(doc, i18n)}
+      <p>${escapeHtml(i18n.t('docSheet.closing'))}</p>
       <footer class="sign">
-        <div>À la date du ${escapeHtml(issued)}</div>
-        <div class="signer">${escapeHtml(pretty(doc, 'signer'))}</div>
+        <div>${i18n.t('docSheet.issuedOn', { date: escapeHtml(issued) })}</div>
+        <div class="signer">${escapeHtml(pretty(doc, 'signer', i18n))}</div>
       </footer>
     </article>
   `;
@@ -99,7 +109,7 @@ const SHEET_CSS = `
 `;
 
 /** Renders the attestation off-screen and saves it as a PDF. */
-export async function downloadDocument(doc: DocumentRequest): Promise<void> {
+export async function downloadDocument(doc: DocumentRequest, i18n: I18nService): Promise<void> {
   const [{ jsPDF }, html2canvas] = await Promise.all([
     import('jspdf'),
     import('html2canvas').then((m) => m.default),
@@ -108,7 +118,7 @@ export async function downloadDocument(doc: DocumentRequest): Promise<void> {
   const host = document.createElement('div');
   host.setAttribute('aria-hidden', 'true');
   host.style.cssText = 'position:fixed;left:-10000px;top:0;background:#fff;';
-  host.innerHTML = `<style>${SHEET_CSS}</style>${sheetMarkup(doc)}`;
+  host.innerHTML = `<style>${SHEET_CSS}</style>${sheetMarkup(doc, i18n)}`;
   document.body.appendChild(host);
 
   try {
@@ -129,7 +139,7 @@ export async function downloadDocument(doc: DocumentRequest): Promise<void> {
       w = h / ratio;
     }
     pdf.addImage(img, 'PNG', (pageW - w) / 2, margin, w, h);
-    pdf.save(documentFileName(doc));
+    pdf.save(documentFileName(doc, i18n));
   } finally {
     host.remove();
   }

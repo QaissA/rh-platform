@@ -1,7 +1,9 @@
 class DocumentRequestsController < ApplicationController
+  UPDATABLE_STATUSES = %w[processing ready].freeze
+
   before_action :require_user!
-  before_action :require_hr!, only: [:inbox]
-  before_action :set_request, only: [:show, :update]
+  before_action :require_hr!, only: [:inbox, :reject]
+  before_action :set_request, only: [:show, :update, :cancel, :reject]
 
   # GET /requests  -> current user's administrative paper requests
   def index
@@ -36,16 +38,18 @@ class DocumentRequestsController < ApplicationController
     end
   end
 
-  # PATCH /requests/:id  -> RH saves template fields and/or changes status
+  # PATCH /requests/:id  -> RH saves template fields and/or marks processing/ready
   def update
     return render json: { error: "Accès réservé à la RH" }, status: :forbidden unless hr_officer?
-    return render json: { error: "Demande introuvable" }, status: :not_found unless @request
+    return render json: { error: "Cette demande est clôturée" }, status: :unprocessable_content if @request.closed?
 
     becoming_ready = params[:status] == "ready" && !@request.ready?
 
     @request.fields = sanitized_fields if params.key?(:fields)
     if params[:status].present?
-      return render json: { error: "Statut invalide" }, status: :unprocessable_content unless DocumentRequest.statuses.key?(params[:status])
+      unless UPDATABLE_STATUSES.include?(params[:status].to_s)
+        return render json: { error: "Statut invalide" }, status: :unprocessable_content
+      end
 
       @request.status = params[:status]
       if @request.ready?
@@ -63,11 +67,34 @@ class DocumentRequestsController < ApplicationController
     end
   end
 
+  # PATCH /requests/:id/cancel  -> employee withdraws an open request
+  def cancel
+    return render json: { error: "Accès refusé" }, status: :forbidden unless owner?
+    return render json: { error: "Cette demande ne peut plus être annulée" }, status: :unprocessable_content unless @request.open?
+
+    @request.update!(status: "cancelled")
+    render json: request_json(@request, fields: false)
+  end
+
+  # PATCH /requests/:id/reject  -> RH / admin refuses an open request
+  def reject
+    return render json: { error: "Cette demande ne peut plus être refusée" }, status: :unprocessable_content unless @request.open?
+
+    comment = params[:comment].presence || params[:decision_comment].presence
+    @request.update!(status: "rejected", decision_comment: comment)
+    notify_document_rejected
+    render json: request_json(@request, fields: true)
+  end
+
   private
 
   def set_request
     @request = DocumentRequest.find_by(id: params[:id])
     render json: { error: "Demande introuvable" }, status: :not_found unless @request
+  end
+
+  def owner?
+    @request.user_id.to_s == current_user_id.to_s
   end
 
   def can_read?(req)
@@ -110,6 +137,19 @@ class DocumentRequestsController < ApplicationController
       title: "Votre document est prêt",
       body: "La RH a mis votre document administratif à disposition. Vous pouvez le télécharger.",
       link: "/documents/#{@request.id}",
+    )
+  end
+
+  def notify_document_rejected
+    body = "La RH a refusé votre demande de document."
+    note = @request.decision_comment.to_s.strip
+    body = "#{body} Motif : #{note}" if note.present?
+    NotificationClient.notify(
+      user_id: @request.user_id,
+      kind: "document_rejected",
+      title: "Demande de document refusée",
+      body: body,
+      link: "/documents",
     )
   end
 end

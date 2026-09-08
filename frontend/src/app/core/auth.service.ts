@@ -1,4 +1,4 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, Injector, computed, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 import { API_BASE_URL } from './api';
@@ -15,6 +15,7 @@ export class AuthService {
   private readonly base = inject(API_BASE_URL);
   private readonly notifs = inject(NotificationService);
   private readonly badges = inject(InboxBadgeService);
+  private readonly injector = inject(Injector);
 
   private _user = signal<User | null>(readUser());
   private _token = signal<string | null>(localStorage.getItem(TOKEN_KEY));
@@ -41,6 +42,7 @@ export class AuthService {
           this.notifs.clear();
           this.badges.clear();
           this.persist(res);
+          this.startChat();
           // Remember the temporary password so the forced change screen can
           // reuse it without asking the user to re-enter it.
           this._tempPassword.set(res.user.must_change_password ? password : null);
@@ -71,6 +73,7 @@ export class AuthService {
     this._tempPassword.set(null);
     this.notifs.clear();
     this.badges.clear();
+    this.stopChat();
   }
 
   private finishPasswordChange(user: User): void {
@@ -87,6 +90,14 @@ export class AuthService {
   private persistUser(user: User): void {
     localStorage.setItem(USER_KEY, JSON.stringify(user));
     this._user.set(user);
+  }
+
+  private startChat(): void {
+    import('./chat.service').then((m) => this.injector.get(m.ChatService).start());
+  }
+
+  private stopChat(): void {
+    import('./chat.service').then((m) => this.injector.get(m.ChatService).stop());
   }
 }
 

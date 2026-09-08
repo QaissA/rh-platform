@@ -1,12 +1,12 @@
 <section class="view">
   <div class="greet">
     <div>
-      <h2>Bonjour, {{ firstName() }}.</h2>
-      <p>{{ isRh() ? 'File RH et documents à traiter.' : isManager() ? 'Ce qui attend votre validation.' : 'Votre solde, vos demandes, votre équipe.' }}</p>
+      <h2>{{ 'dashboard.hello' | t:{ name: firstName() } }}</h2>
+      <p>{{ isRh() ? ('dashboard.introRh' | t) : isManager() ? ('dashboard.introManager' | t) : ('dashboard.introEmployee' | t) }}</p>
     </div>
     <div class="quick">
-      <a class="btn btn--primary" routerLink="/conges">Nouvelle demande</a>
-      <a class="btn btn--ghost" routerLink="/documents">Demander un document</a>
+      <a class="btn btn--primary" routerLink="/conges">{{ 'common.newRequest' | t }}</a>
+      <a class="btn btn--ghost" routerLink="/documents">{{ 'dashboard.askDocument' | t }}</a>
     </div>
   </div>
 
@@ -20,21 +20,21 @@
   } @else {
     <div class="dash-grid">
       <div class="widget span-8">
-        <div class="widget__hd"><h3>Solde de congés</h3></div>
-        <div class="widget__metric">{{ balanceDays() }} <small>jours</small></div>
+        <div class="widget__hd"><h3>{{ 'dashboard.leaveBalance' | t }}</h3></div>
+        <div class="widget__metric">{{ balanceDays() }} <small>{{ 'common.daysUnit' | t }}</small></div>
         <div class="widget__ctx">
-          @if (nextLeave()) { Prochain congé confirmé : {{ nextLeave() }} }
-          @else { Aucune absence à venir. }
+          @if (nextLeave()) { {{ 'dashboard.nextLeave' | t:{ range: nextLeave()! } }} }
+          @else { {{ 'dashboard.noUpcoming' | t }} }
         </div>
         <div class="widget__ft">
-          <a class="btn btn--ghost btn--sm" routerLink="/conges">Voir mes congés</a>
+          <a class="btn btn--ghost btn--sm" routerLink="/conges">{{ 'dashboard.seeLeave' | t }}</a>
         </div>
       </div>
 
       <div class="widget span-4">
-        <div class="widget__hd"><h3>Documents</h3><a class="card__link" routerLink="/documents">Tout voir</a></div>
-        <div class="widget__metric">{{ readyDocs().length }} <small>prêts</small></div>
-        <div class="widget__ctx">{{ waitingDocs() }} encore chez la RH</div>
+        <div class="widget__hd"><h3>{{ 'dashboard.documents' | t }}</h3><a class="card__link" routerLink="/documents">{{ 'common.seeAll' | t }}</a></div>
+        <div class="widget__metric">{{ readyDocs().length }} <small>{{ 'dashboard.readyCount' | t }}</small></div>
+        <div class="widget__ctx">{{ 'dashboard.waitingRh' | t:{ n: waitingDocs() } }}</div>
         @if (readyDocs().length) {
           <div class="board__list">
             @for (d of readyDocs(); track d.id) {
@@ -42,15 +42,15 @@
             }
           </div>
         } @else {
-          <div class="widget__ctx">Aucun document à télécharger.</div>
+          <div class="widget__ctx">{{ 'dashboard.noDownload' | t }}</div>
         }
       </div>
 
       @if (isManager()) {
         <div class="widget span-8">
           <div class="widget__hd">
-            <h3>File d’attente manager</h3>
-            <a class="card__link" routerLink="/validation-conges">Validation</a>
+            <h3>{{ 'dashboard.managerQueue' | t }}</h3>
+            <a class="card__link" routerLink="/validation-conges">{{ 'dashboard.validation' | t }}</a>
           </div>
           @if (managerQueue().length) {
             <div class="queue">
@@ -59,29 +59,19 @@
                   <span class="avatar {{ q.av }}">{{ q.initials }}</span>
                   <div class="queue-item__body">
                     <div class="queue-item__name">{{ q.name }}@if (q.jobTitle) { <span class="jobtitle">{{ q.jobTitle }}</span> }</div>
-                    <div class="queue-item__meta">{{ q.range }} · {{ q.days }} j</div>
+                    <div class="queue-item__meta">{{ q.range }} · {{ q.days }} {{ 'common.daysShort' | t }}</div>
                     <app-step-tracker [status]="q.req.status" />
                   </div>
-                  <div class="queue-item__actions">
-                    @if (rejectingId() === q.req.id) {
-                      <input name="rc{{ q.req.id }}" [(ngModel)]="rejectComment" placeholder="Motif (facultatif)"
-                             style="padding:6px 10px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);color:var(--ink);font-size:.82rem;min-width:160px" />
-                      <button class="btn btn--danger btn--sm" (click)="confirmReject(q.req)" [disabled]="busyId() === q.req.id">Confirmer</button>
-                      <button class="btn btn--ghost btn--sm" (click)="cancelReject()">Annuler</button>
-                    } @else {
-                      <button class="btn btn--primary btn--sm" (click)="approve(q.req)" [disabled]="busyId() === q.req.id">Approuver</button>
-                      <button class="btn btn--danger btn--sm" (click)="askReject(q.req.id)" [disabled]="busyId() === q.req.id">Refuser</button>
-                    }
-                  </div>
+                  <a class="btn btn--ghost btn--sm" routerLink="/validation-conges">{{ 'dashboard.process' | t }}</a>
                 </div>
               }
             </div>
           } @else {
-            <div class="empty" style="padding:18px"><p>Rien à valider pour votre équipe.</p></div>
+            <div class="empty" style="padding:18px"><p>{{ 'dashboard.nothingToValidate' | t }}</p></div>
           }
         </div>
         <div class="widget span-4">
-          <div class="widget__hd"><h3>Cette semaine</h3><a class="card__link" routerLink="/equipe">Équipe</a></div>
+          <div class="widget__hd"><h3>{{ 'dashboard.thisWeek' | t }}</h3><a class="card__link" routerLink="/equipe">{{ 'dashboard.team' | t }}</a></div>
           @if (weekOut().length) {
             <div class="plist">
               @for (m of weekOut(); track m.id) {
@@ -93,7 +83,7 @@
               }
             </div>
           } @else {
-            <div class="widget__ctx">Personne en congé cette semaine.</div>
+            <div class="widget__ctx">{{ 'dashboard.nobodyOff' | t }}</div>
           }
         </div>
       }
@@ -101,8 +91,8 @@
       @if (isRh()) {
         <div class="widget span-8">
           <div class="widget__hd">
-            <h3>À confirmer (RH)</h3>
-            <a class="card__link" routerLink="/validation-conges">Validation</a>
+            <h3>{{ 'dashboard.hrConfirm' | t }}</h3>
+            <a class="card__link" routerLink="/validation-conges">{{ 'dashboard.validation' | t }}</a>
           </div>
           @if (hrQueue().length) {
             <div class="queue">
@@ -111,29 +101,19 @@
                   <span class="avatar {{ q.av }}">{{ q.initials }}</span>
                   <div class="queue-item__body">
                     <div class="queue-item__name">{{ q.name }}@if (q.jobTitle) { <span class="jobtitle">{{ q.jobTitle }}</span> }</div>
-                    <div class="queue-item__meta">{{ q.range }} · {{ q.days }} j</div>
+                    <div class="queue-item__meta">{{ q.range }} · {{ q.days }} {{ 'common.daysShort' | t }}</div>
                     <app-step-tracker [status]="q.req.status" />
                   </div>
-                  <div class="queue-item__actions">
-                    @if (rejectingId() === q.req.id) {
-                      <input name="hr{{ q.req.id }}" [(ngModel)]="rejectComment" placeholder="Motif (facultatif)"
-                             style="padding:6px 10px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);color:var(--ink);font-size:.82rem;min-width:160px" />
-                      <button class="btn btn--danger btn--sm" (click)="confirmReject(q.req)" [disabled]="busyId() === q.req.id">Confirmer</button>
-                      <button class="btn btn--ghost btn--sm" (click)="cancelReject()">Annuler</button>
-                    } @else {
-                      <button class="btn btn--primary btn--sm" (click)="approve(q.req)" [disabled]="busyId() === q.req.id">Confirmer</button>
-                      <button class="btn btn--danger btn--sm" (click)="askReject(q.req.id)" [disabled]="busyId() === q.req.id">Refuser</button>
-                    }
-                  </div>
+                  <a class="btn btn--ghost btn--sm" routerLink="/validation-conges">{{ 'dashboard.process' | t }}</a>
                 </div>
               }
             </div>
           } @else {
-            <div class="empty" style="padding:18px"><p>Aucune demande en attente de la RH.</p></div>
+            <div class="empty" style="padding:18px"><p>{{ 'dashboard.noHrPending' | t }}</p></div>
           }
         </div>
         <div class="widget span-4">
-          <div class="widget__hd"><h3>Documents à rédiger</h3><a class="card__link" routerLink="/documents-rh">Inbox</a></div>
+          <div class="widget__hd"><h3>{{ 'dashboard.docsToWrite' | t }}</h3><a class="card__link" routerLink="/documents-rh">{{ 'dashboard.inbox' | t }}</a></div>
           @if (openDocs().length) {
             <div class="board__list">
               @for (d of openDocs(); track d.id) {
@@ -144,17 +124,17 @@
               }
             </div>
           } @else {
-            <div class="widget__ctx">Boîte vide.</div>
+            <div class="widget__ctx">{{ 'dashboard.inboxEmpty' | t }}</div>
           }
         </div>
       }
 
       <div class="widget span-8">
-        <div class="widget__hd"><h3>Mes demandes</h3><a class="card__link" routerLink="/conges">Tout voir</a></div>
+        <div class="widget__hd"><h3>{{ 'dashboard.myRequests' | t }}</h3><a class="card__link" routerLink="/conges">{{ 'common.seeAll' | t }}</a></div>
         @if (recent().length) {
           <div class="tablewrap">
             <table>
-              <thead><tr><th>Période</th><th>Validation</th><th>Statut</th></tr></thead>
+              <thead><tr><th>{{ 'common.period' | t }}</th><th>{{ 'leaveReview.validation' | t }}</th><th>{{ 'common.status' | t }}</th></tr></thead>
               <tbody>
                 @for (r of recent(); track r.id) {
                   <tr>
@@ -168,16 +148,16 @@
           </div>
         } @else {
           <div class="empty">
-            <p>Aucune demande pour l'instant.</p>
-            <a class="btn btn--primary btn--sm" routerLink="/conges" style="margin-top:10px">Poser un congé</a>
+            <p>{{ 'dashboard.noRequests' | t }}</p>
+            <a class="btn btn--primary btn--sm" routerLink="/conges" style="margin-top:10px">{{ 'dashboard.requestLeave' | t }}</a>
           </div>
         }
       </div>
 
       <div class="widget span-4">
         <div class="widget__hd">
-          <h3>{{ teamName() ? 'Équipe aujourd’hui' : 'Présence aujourd’hui' }}</h3>
-          <a class="card__link" routerLink="/equipe">Équipe</a>
+          <h3>{{ teamName() ? ('dashboard.teamToday' | t) : ('dashboard.presenceToday' | t) }}</h3>
+          <a class="card__link" routerLink="/equipe">{{ 'dashboard.team' | t }}</a>
         </div>
         @if (teamToday().length) {
           <div class="plist">
@@ -190,7 +170,7 @@
             }
           </div>
         } @else {
-          <div class="widget__ctx">Pas d’équipe rattachée — la présence réelle s’affiche dès que vous en avez une.</div>
+          <div class="widget__ctx">{{ 'dashboard.noTeam' | t }}</div>
         }
       </div>
     </div>

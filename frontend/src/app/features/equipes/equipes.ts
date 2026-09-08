@@ -3,17 +3,20 @@ import { FormsModule } from '@angular/forms';
 import { TeamAdminService } from '../../core/team-admin.service';
 import { ProjectAdminService } from '../../core/project-admin.service';
 import { ToastService } from '../../core/toast.service';
+import { I18nService } from '../../core/i18n.service';
+import { TranslatePipe } from '../../core/translate.pipe';
 import { Project, TeamSummary } from '../../core/models';
 
 @Component({
   selector: 'app-equipes',
-  imports: [FormsModule],
+  imports: [FormsModule, TranslatePipe],
   templateUrl: './equipes.html',
 })
 export class Equipes {
   private api = inject(TeamAdminService);
   private projectApi = inject(ProjectAdminService);
   private toast = inject(ToastService);
+  private i18n = inject(I18nService);
 
   protected loading = signal(true);
   protected submitting = signal(false);
@@ -25,21 +28,18 @@ export class Equipes {
   protected editingId = signal<number | null>(null);
   protected editName = '';
 
-  // create form
   protected name = '';
   protected projectId = '';
 
   protected totalMembers = computed(() =>
     this.teams().reduce((acc, t) => acc + (t.member_count ?? 0), 0),
   );
-  // Projects that don't yet have a team (a project has at most one team).
   protected freeProjects = computed(() => {
     const taken = new Set(this.teams().map((t) => t.project_id).filter((id): id is number => id != null));
     return this.projects().filter((p) => !taken.has(p.id));
   });
 
   protected nameValid = (): boolean => this.name.trim().length > 0;
-  // For a row's reassign select: free projects plus the team's current one.
   protected projectOptions = (team: TeamSummary): Project[] => {
     const free = this.freeProjects();
     const current = this.projects().find((p) => p.id === team.project_id);
@@ -64,12 +64,12 @@ export class Equipes {
         this.panelOpen.set(false);
         this.name = '';
         this.projectId = '';
-        this.toast.show('Équipe créée');
+        this.toast.show(this.i18n.t('teamsAdmin.created'));
         this.reload();
       },
       error: (err) => {
         this.submitting.set(false);
-        this.toast.show(this.errorText(err, "Échec de la création de l'équipe"));
+        this.toast.show(this.errorText(err, 'teamsAdmin.createFail'));
       },
     });
   }
@@ -82,11 +82,11 @@ export class Equipes {
       next: (updated) => {
         this.busyId.set(null);
         this.replace(updated);
-        this.toast.show(`Projet mis à jour pour ${updated.name}`);
+        this.toast.show(this.i18n.t('teamsAdmin.projectUpdated', { name: updated.name }));
       },
       error: (err) => {
         this.busyId.set(null);
-        this.toast.show(this.errorText(err, 'Affectation refusée'));
+        this.toast.show(this.errorText(err, 'teamsAdmin.assignFail'));
         this.reload();
       },
     });
@@ -111,11 +111,11 @@ export class Equipes {
         this.busyId.set(null);
         this.editingId.set(null);
         this.replace(updated);
-        this.toast.show('Équipe renommée');
+        this.toast.show(this.i18n.t('teamsAdmin.renamed'));
       },
       error: (err) => {
         this.busyId.set(null);
-        this.toast.show(this.errorText(err, 'Renommage refusé'));
+        this.toast.show(this.errorText(err, 'teamsAdmin.renameFail'));
       },
     });
   }
@@ -133,12 +133,12 @@ export class Equipes {
         this.busyId.set(null);
         this.confirmId.set(null);
         this.teams.update((list) => list.filter((t) => t.id !== team.id));
-        this.toast.show(`Équipe « ${team.name} » supprimée`);
+        this.toast.show(this.i18n.t('teamsAdmin.deleted', { name: team.name }));
       },
       error: (err) => {
         this.busyId.set(null);
         this.confirmId.set(null);
-        this.toast.show(this.errorText(err, 'Suppression refusée'));
+        this.toast.show(this.errorText(err, 'teamsAdmin.deleteFail'));
       },
     });
   }
@@ -166,8 +166,8 @@ export class Equipes {
     return value ? Number(value) : null;
   }
 
-  private errorText(err: unknown, fallback: string): string {
+  private errorText(err: unknown, fallbackKey: string): string {
     const e = err as { error?: { error?: string; errors?: string[] } };
-    return e?.error?.error || e?.error?.errors?.join(', ') || fallback;
+    return e?.error?.error || e?.error?.errors?.join(', ') || this.i18n.t(fallbackKey);
   }
 }

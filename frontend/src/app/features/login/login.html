@@ -7,27 +7,28 @@
       Alizé
     </div>
     <div class="login__pitch">
-      <h1>La respiration RH de votre équipe.</h1>
-      <p>Congés, présence et démarches administratives — au même endroit, sans friction.</p>
+      <h1>{{ 'login.headline' | t }}</h1>
+      <p>{{ 'login.pitch' | t }}</p>
     </div>
     <div class="login__meta">
-      <div><div class="k num">18,5</div><div class="l">jours de solde</div></div>
-      <div><div class="k num">7</div><div class="l">coéquipiers</div></div>
-      <div><div class="k num">2</div><div class="l">demandes en cours</div></div>
+      <div><div class="k num">18,5</div><div class="l">{{ 'login.statBalance' | t }}</div></div>
+      <div><div class="k num">7</div><div class="l">{{ 'login.statTeammates' | t }}</div></div>
+      <div><div class="k num">2</div><div class="l">{{ 'login.statPending' | t }}</div></div>
     </div>
   </div>
 
   <div class="login__formpane">
     <form class="login__form" (ngSubmit)="submit()">
-      <h2>Bon retour 👋</h2>
-      <p class="sub">Connectez-vous à votre espace Alizé.</p>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:18px"><app-lang-switcher /></div>
+      <h2>{{ 'login.welcome' | t }}</h2>
+      <p class="sub">{{ 'login.subtitle' | t }}</p>
 
       <div class="field">
-        <label for="email">Adresse e-mail</label>
+        <label for="email">{{ 'login.email' | t }}</label>
         <input id="email" name="email" type="email" [(ngModel)]="email" autocomplete="username" />
       </div>
       <div class="field">
-        <label for="pwd">Mot de passe</label>
+        <label for="pwd">{{ 'login.password' | t }}</label>
         <input id="pwd" name="password" type="password" [(ngModel)]="password" autocomplete="current-password" />
       </div>
 
@@ -36,16 +37,16 @@
       }
 
       <button class="btn btn--primary btn--block" type="submit" [disabled]="loading()">
-        @if (loading()) { <span class="spinner" style="width:16px;height:16px;border-width:2px"></span> Connexion… }
-        @else { Se connecter }
+        @if (loading()) { <span class="spinner" style="width:16px;height:16px;border-width:2px"></span> {{ 'login.submitting' | t }} }
+        @else { {{ 'login.submit' | t }} }
       </button>
 
       <div class="demohint">
-        Comptes de démo
+        {{ 'login.demos' | t }}
         <div class="demo-chips">
-          <button type="button" class="demo-chip" (click)="fillDemo('employee@rh.local')">Employé</button>
-          <button type="button" class="demo-chip" (click)="fillDemo('manager@rh.local')">Manager</button>
-          <button type="button" class="demo-chip" (click)="fillDemo('rh@rh.local')">RH</button>
+          <button type="button" class="demo-chip" (click)="fillDemo('employee@rh.local')">{{ 'login.demoEmployee' | t }}</button>
+          <button type="button" class="demo-chip" (click)="fillDemo('manager@rh.local')">{{ 'login.demoManager' | t }}</button>
+          <button type="button" class="demo-chip" (click)="fillDemo('rh@rh.local')">{{ 'login.demoRh' | t }}</button>
         </div>
       </div>
     </form>

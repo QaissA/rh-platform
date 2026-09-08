@@ -1,27 +1,27 @@
 <section class="view">
   <div class="sectionhead">
     <div>
-      <h3>Dossiers</h3>
-      <p>Fiches collaborateurs : poste, adresse, rémunération. Les salaires ne sont pas visibles des employés.</p>
+      <h3>{{ 'dossiers.title' | t }}</h3>
+      <p>{{ 'dossiers.help' | t }}</p>
     </div>
   </div>
 
   @if (loading()) {
-    <div class="card"><div class="loading"><span class="spinner"></span> Chargement…</div></div>
+    <div class="card"><div class="loading"><span class="spinner"></span> {{ 'common.loading' | t }}</div></div>
   } @else {
     @if (pending().length) {
       <div class="card" style="margin-bottom:16px;border-color:var(--warn)">
-        <div class="card__hd"><h3>Demandes de poste</h3></div>
+        <div class="card__hd"><h3>{{ 'dossiers.jobRequests' | t }}</h3></div>
         <div class="queue" style="padding:0 18px 12px">
           @for (u of pending(); track u.id) {
             <div class="queue-item">
               <div class="queue-item__body">
                 <div class="queue-item__name">{{ name(u) }}@if (u.job_title) { <span class="jobtitle">{{ u.job_title }}</span> }</div>
-                <div class="queue-item__meta">Demande : {{ u.pending_job_title }} · actuel : {{ u.job_title || '—' }}</div>
+                <div class="queue-item__meta">{{ requestMeta(u) }}</div>
               </div>
               <div class="queue-item__actions">
-                <button class="btn btn--primary btn--sm" (click)="accept(u)" [disabled]="busyId() === u.id">Accepter</button>
-                <button class="btn btn--danger btn--sm" (click)="reject(u)" [disabled]="busyId() === u.id">Refuser</button>
+                <button class="btn btn--primary btn--sm" (click)="accept(u)" [disabled]="busyId() === u.id">{{ 'dossiers.accept' | t }}</button>
+                <button class="btn btn--danger btn--sm" (click)="reject(u)" [disabled]="busyId() === u.id">{{ 'common.reject' | t }}</button>
               </div>
             </div>
           }
@@ -32,18 +32,18 @@
     <div class="card">
       <div class="tablewrap">
         <table>
-          <thead><tr><th>Collaborateur·rice</th><th>Poste</th><th>Compte</th><th></th></tr></thead>
+          <thead><tr><th>{{ 'common.employee' | t }}</th><th>{{ 'dossiers.job' | t }}</th><th>{{ 'dossiers.account' | t }}</th><th></th></tr></thead>
           <tbody>
             @for (u of users(); track u.id) {
               <tr>
                 <td class="cell-strong">{{ name(u) }}@if (u.job_title) { <span class="jobtitle">{{ u.job_title }}</span> }<div class="rl" style="font-weight:400;color:var(--ink-3);font-size:.8rem">{{ u.email }}</div></td>
                 <td>
-                  {{ u.job_title || '—' }}
-                  @if (u.pending_job_title) { <span class="chip warn" style="margin-left:8px"><span class="d"></span> Demande</span> }
+                  {{ u.job_title || ('common.dash' | t) }}
+                  @if (u.pending_job_title) { <span class="chip warn" style="margin-left:8px"><span class="d"></span> {{ 'dossiers.requestChip' | t }}</span> }
                 </td>
                 <td>{{ roleLabel(u.role) }}</td>
                 <td style="text-align:right">
-                  <a class="btn btn--ghost btn--sm" [routerLink]="['/dossiers', u.id]">Ouvrir</a>
+                  <a class="btn btn--ghost btn--sm" [routerLink]="['/dossiers', u.id]">{{ 'common.open' | t }}</a>
                 </td>
               </tr>
             }

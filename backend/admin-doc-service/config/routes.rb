@@ -6,5 +6,9 @@ Rails.application.routes.draw do
     collection do
       get :inbox
     end
+    member do
+      patch :cancel
+      patch :reject
+    end
   end
 end

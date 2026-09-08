@@ -32,4 +32,12 @@ export class DocumentService {
   ): Observable<DocumentRequest> {
     return this.http.patch<DocumentRequest>(`${this.base}/admin-docs/requests/${id}`, payload);
   }
+
+  cancelRequest(id: number): Observable<DocumentRequest> {
+    return this.http.patch<DocumentRequest>(`${this.base}/admin-docs/requests/${id}/cancel`, {});
+  }
+
+  rejectRequest(id: number, comment?: string): Observable<DocumentRequest> {
+    return this.http.patch<DocumentRequest>(`${this.base}/admin-docs/requests/${id}/reject`, { comment });
+  }
 }

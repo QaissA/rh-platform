@@ -1,0 +1,131 @@
+<section class="view chat">
+  <aside class="chat__list card">
+    <div class="chat__list-hd">
+      <h3>{{ 'chat.conversations' | t }}</h3>
+      @if (picking()) {
+        <button class="btn btn--ghost btn--sm" type="button" (click)="cancelPick()">{{ 'common.cancel' | t }}</button>
+      } @else {
+        <button class="btn btn--ghost btn--sm" type="button" (click)="startPick()">{{ 'chat.new' | t }}</button>
+      }
+    </div>
+
+    @if (picking()) {
+      <input class="chat__search" name="peopleQuery" [ngModel]="peopleQuery()"
+             (ngModelChange)="peopleQuery.set($event)" [placeholder]="'chat.searchPerson' | t" />
+      <div class="chat__threads">
+        @for (p of filteredPeople(); track p.id) {
+          <button class="chat__row" type="button" (click)="openWith(p.id)">
+            <span class="avatar {{ av(p.id) }}">{{ initialsOf(p) }}</span>
+            <div class="chat__row-body">
+              <div class="chat__row-name">{{ nameOf(p) }}@if (jobOf(p); as t) { <span class="jobtitle">{{ t }}</span> }</div>
+              <div class="chat__row-snip">{{ 'status.role.' + p.role | t }}</div>
+            </div>
+          </button>
+        } @empty {
+          <div class="empty chat__empty">
+            <p>{{ 'chat.noPeople' | t }}</p>
+          </div>
+        }
+      </div>
+    } @else {
+      <input class="chat__search" name="listQuery" [ngModel]="listQuery()"
+             (ngModelChange)="listQuery.set($event)" [placeholder]="'chat.searchThread' | t" />
+      <div class="chat__threads">
+        @for (c of filteredConversations(); track c.id) {
+          <button class="chat__row" type="button" [class.is-active]="activeId() === c.id" (click)="openThread(c)">
+            <span class="avatar {{ av(c.other.id) }}">{{ initialsOf(c.other) }}</span>
+            <div class="chat__row-body">
+              <div class="chat__row-name">
+                {{ nameOf(c.other) }}
+                @if (c.unread_count > 0) {
+                  <span class="count">{{ c.unread_count }}</span>
+                }
+              </div>
+              <div class="chat__row-snip">{{ snippet(c) }}</div>
+            </div>
+          </button>
+        } @empty {
+          <div class="empty chat__empty">
+            <p>{{ listQuery() ? ('chat.noResults' | t) : ('chat.noConversations' | t) }}</p>
+          </div>
+        }
+      </div>
+    }
+  </aside>
+
+  <div class="chat__pane card" [class.is-drop]="dragging()"
+       (dragover)="onDragOver($event)" (dragleave)="dragging.set(false)" (drop)="onDrop($event)">
+    @if (active(); as conv) {
+      <div class="chat__pane-hd">
+        <span class="avatar {{ av(conv.other.id) }}">{{ initialsOf(conv.other) }}</span>
+        <div class="chat__pane-who">
+          <div class="chat__row-name">{{ nameOf(conv.other) }}@if (jobOf(conv.other); as t) { <span class="jobtitle">{{ t }}</span> }</div>
+          <div class="chat__row-snip">{{ 'status.role.' + conv.other.role | t }}</div>
+        </div>
+        <input class="chat__search chat__search--thread" name="threadQuery" [ngModel]="threadQuery()"
+               (ngModelChange)="threadQuery.set($event)" [placeholder]="'chat.searchInThread' | t" />
+      </div>
+      <div class="chat__log" #log>
+        @for (item of items(); track trackItem(item)) {
+          @if (item.kind === 'day') {
+            <div class="chat__day">{{ item.label }}</div>
+          } @else {
+            <div class="bubble" [class.bubble--mine]="mine(item.msg)">
+              @if (item.msg.attachment; as file) {
+                @if (isImage(file) && previewOf(item.msg); as src) {
+                  <button class="bubble__img-btn" type="button" (click)="download(item.msg)" [title]="file.filename">
+                    <img class="bubble__img" [src]="src" [alt]="file.filename" />
+                  </button>
+                } @else {
+                  <button class="bubble__file" type="button" (click)="download(item.msg)">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M6 2.5h8l5 5v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1Z"/>
+                      <path d="M14 2.5V8h5"/>
+                    </svg>
+                    <span>
+                      <strong>{{ file.filename }}</strong>
+                      <small>{{ fileSize(file.byte_size) }}</small>
+                    </span>
+                  </button>
+                }
+              }
+              @if (item.msg.body) {
+                <div class="bubble__body">{{ item.msg.body }}</div>
+              }
+              <div class="bubble__when">{{ when(item.msg.created_at) }}</div>
+            </div>
+          }
+        } @empty {
+          <div class="empty chat__empty">
+            <p>{{ threadQuery() ? ('chat.noMatch' | t) : ('chat.firstMessage' | t) }}</p>
+          </div>
+        }
+      </div>
+      @if (pendingFile(); as file) {
+        <div class="chat__chip">
+          <span>{{ file.name }} · {{ fileSize(file.size) }}</span>
+          <button type="button" (click)="clearFile()" [attr.aria-label]="'chat.removeFile' | t">×</button>
+        </div>
+      }
+      <div class="chat__composer">
+        <input #fileInput type="file" hidden [accept]="accept" (change)="onFileInput($event)" />
+        <button class="btn btn--ghost chat__attach" type="button" (click)="fileInput.click()" [title]="'chat.attach' | t">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21.4 11.6 12 21a6 6 0 0 1-8.5-8.5l9.4-9.4a4 4 0 0 1 5.7 5.7L9.2 18.2a2 2 0 1 1-2.8-2.8l8.5-8.5"/>
+          </svg>
+        </button>
+        <textarea name="composing" [ngModel]="composing()" (ngModelChange)="composing.set($event)" rows="2"
+                  [placeholder]="'chat.placeholder' | t"
+                  (keydown)="onComposerKey($event)"></textarea>
+        <button class="btn btn--primary" type="button" (click)="send()" [disabled]="!canSend()">{{ 'common.send' | t }}</button>
+      </div>
+    } @else {
+      <div class="empty chat__empty chat__empty--pane">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 5.5h16a1.5 1.5 0 0 1 1.5 1.5v9a1.5 1.5 0 0 1-1.5 1.5H8l-4 3v-3H4A1.5 1.5 0 0 1 2.5 16V7A1.5 1.5 0 0 1 4 5.5Z"/>
+        </svg>
+        <p>{{ 'chat.pick' | t }}</p>
+      </div>
+    }
+  </div>
+</section>

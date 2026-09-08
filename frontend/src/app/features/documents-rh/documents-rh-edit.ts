@@ -6,13 +6,15 @@ import { UserAdminService } from '../../core/user-admin.service';
 import { ToastService } from '../../core/toast.service';
 import { DocumentRequest } from '../../core/models';
 import { fullName } from '../../core/format';
-import { DOC_STATUS_CHIP, DOC_STATUS_LABEL, DOC_TYPE_LABEL } from '../../core/labels';
+import { DOC_STATUS_CHIP } from '../../core/labels';
 import { TEMPLATE_FIELDS, TemplateField, defaultDocFields } from '../../core/document-templates';
 import { DocumentPreview } from '../documents/document-preview';
+import { I18nService } from '../../core/i18n.service';
+import { TranslatePipe } from '../../core/translate.pipe';
 
 @Component({
   selector: 'app-documents-rh-edit',
-  imports: [FormsModule, RouterLink, DocumentPreview],
+  imports: [FormsModule, RouterLink, DocumentPreview, TranslatePipe],
   templateUrl: './documents-rh-edit.html',
 })
 export class DocumentsRhEdit {
@@ -21,6 +23,7 @@ export class DocumentsRhEdit {
   private docs = inject(DocumentService);
   private usersApi = inject(UserAdminService);
   private toast = inject(ToastService);
+  private i18n = inject(I18nService);
 
   protected loading = signal(true);
   protected saving = signal(false);
@@ -30,9 +33,9 @@ export class DocumentsRhEdit {
   protected rejectComment = '';
   protected rejecting = signal(false);
 
-  protected typeLabel = (t: string) => DOC_TYPE_LABEL[t] ?? t;
+  protected typeLabel = (t: string) => this.i18n.t(`docType.${t}`);
   protected chip = (s: string) => DOC_STATUS_CHIP[s as keyof typeof DOC_STATUS_CHIP] ?? 'mut';
-  protected label = (s: string) => DOC_STATUS_LABEL[s as keyof typeof DOC_STATUS_LABEL] ?? s;
+  protected label = (s: string) => this.i18n.t(`status.doc.${s}`);
 
   constructor() {
     const id = Number(this.route.snapshot.paramMap.get('id'));
@@ -40,7 +43,7 @@ export class DocumentsRhEdit {
       next: (r) => this.hydrate(r),
       error: () => {
         this.loading.set(false);
-        this.toast.show('Demande introuvable');
+        this.toast.show(this.i18n.t('docsRh.notFound'));
         this.router.navigateByUrl('/documents-rh');
       },
     });
@@ -62,11 +65,11 @@ export class DocumentsRhEdit {
       next: (updated) => {
         this.saving.set(false);
         this.hydrate(updated);
-        this.toast.show(status === 'ready' ? 'Document mis à disposition du collaborateur' : 'Brouillon enregistré');
+        this.toast.show(this.i18n.t(status === 'ready' ? 'docsRh.savedReady' : 'docsRh.savedDraft'));
       },
       error: () => {
         this.saving.set(false);
-        this.toast.show('Enregistrement impossible');
+        this.toast.show(this.i18n.t('docsRh.saveFail'));
       },
     });
   }
@@ -77,17 +80,17 @@ export class DocumentsRhEdit {
 
   confirmReject(): void {
     const r = this.request();
-    if (!r) return;
+    if (!r || this.saving()) return;
     this.saving.set(true);
-    this.docs.updateRequest(r.id, { status: 'rejected', decision_comment: this.rejectComment.trim() || undefined }).subscribe({
+    this.docs.rejectRequest(r.id, this.rejectComment.trim() || undefined).subscribe({
       next: () => {
         this.saving.set(false);
-        this.toast.show('Demande refusée');
+        this.toast.show(this.i18n.t('docsRh.rejectedToast'));
         this.router.navigateByUrl('/documents-rh');
       },
       error: () => {
         this.saving.set(false);
-        this.toast.show('Refus impossible');
+        this.toast.show(this.i18n.t('docsRh.rejectFail'));
       },
     });
   }
@@ -96,15 +99,15 @@ export class DocumentsRhEdit {
     this.usersApi.list().subscribe({
       next: (users) => {
         const u = users.find((x) => x.id === r.user_id);
-        const name = u ? fullName(u) : `Utilisateur #${r.user_id}`;
+        const name = u ? fullName(u) : this.i18n.t('common.userN', { id: r.user_id });
         this.template = TEMPLATE_FIELDS[r.doc_type] ?? TEMPLATE_FIELDS['other'];
-        this.fields = { ...defaultDocFields(r.doc_type, name, r.note), ...(r.fields ?? {}) };
+        this.fields = { ...defaultDocFields(r.doc_type, name, r.note, (k, p) => this.i18n.t(k, p)), ...(r.fields ?? {}) };
         this.request.set({ ...r, fields: this.fields });
         this.loading.set(false);
       },
       error: () => {
         this.template = TEMPLATE_FIELDS[r.doc_type] ?? TEMPLATE_FIELDS['other'];
-        this.fields = { ...defaultDocFields(r.doc_type, `Utilisateur #${r.user_id}`, r.note), ...(r.fields ?? {}) };
+        this.fields = { ...defaultDocFields(r.doc_type, this.i18n.t('common.userN', { id: r.user_id }), r.note, (k, p) => this.i18n.t(k, p)), ...(r.fields ?? {}) };
         this.request.set({ ...r, fields: this.fields });
         this.loading.set(false);
       },

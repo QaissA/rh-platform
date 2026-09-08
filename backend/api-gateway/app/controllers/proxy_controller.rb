@@ -1,3 +1,5 @@
+require "cgi"
+
 class ProxyController < ApplicationController
   # Requests that do NOT require a valid JWT (prefix + first path segment).
   PUBLIC_ROUTES = [
@@ -28,7 +30,11 @@ class ProxyController < ApplicationController
       forward_headers(claims)
     )
 
-    render json: response.body, status: response.status
+    if json_like?(response)
+      render json: response.body, status: response.status
+    else
+      pass_through_binary(response)
+    end
   rescue Faraday::ConnectionFailed
     render json: { error: "Service unavailable" }, status: :bad_gateway
   end
@@ -63,7 +69,7 @@ class ProxyController < ApplicationController
   end
 
   def forward_headers(claims)
-    headers = { "Content-Type" => request.content_type || "application/json" }
+    headers = { "Content-Type" => request.get_header("CONTENT_TYPE").presence || "application/json" }
     if claims
       headers["X-User-Id"] = claims[:user_id].to_s
       headers["X-User-Role"] = claims[:role].to_s
@@ -75,5 +81,25 @@ class ProxyController < ApplicationController
       headers["X-Managed-Bu-Ids"] = Array(claims[:managed_bu_ids]).join(",")
     end
     headers
+  end
+
+  def json_like?(response)
+    content_type = response.headers["content-type"].to_s
+    content_type.include?("application/json") || content_type.blank?
+  end
+
+  def pass_through_binary(response)
+    raw = response.headers["content-disposition"].to_s
+    kind = raw.start_with?("attachment") ? "attachment" : "inline"
+    filename = raw[/filename\*=UTF-8''([^;]+)/, 1]
+    filename = CGI.unescape(filename) if filename
+    filename ||= raw[/filename="?([^";]+)"?/, 1]
+    body = response.body
+    body = body.b if body.respond_to?(:b)
+    send_data body,
+              type: response.headers["content-type"].presence || "application/octet-stream",
+              disposition: kind,
+              filename: filename,
+              status: response.status
   end
 end

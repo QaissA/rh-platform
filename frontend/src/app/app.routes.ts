@@ -35,6 +35,10 @@ export const routes: Routes = [
         loadComponent: () => import('./features/equipe/equipe').then((m) => m.Equipe),
       },
       {
+        path: 'messages',
+        loadComponent: () => import('./features/messages/messages').then((m) => m.Messages),
+      },
+      {
         path: 'validation-conges',
         canActivate: [managerGuard],
         loadComponent: () =>

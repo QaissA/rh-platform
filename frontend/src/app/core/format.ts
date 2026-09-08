@@ -5,11 +5,6 @@ interface NameLike {
   job_title?: string | null;
 }
 
-const MONTHS_FR = [
-  'janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin',
-  'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
-];
-
 const AVATAR_CLASSES = ['av1', 'av2', 'av3', 'av4', 'av5', 'av6', 'av7'];
 
 /** Full name from a member, falling back to the email local-part. */
@@ -37,23 +32,36 @@ export function avatarClass(id: number): string {
   return AVATAR_CLASSES[id % AVATAR_CLASSES.length];
 }
 
-/** "2026-08-01" -> "01 août 2026" */
-export function frDate(iso: string): string {
-  const d = new Date(iso);
+/** Locale-aware calendar date: "1 Aug 2026" / "01 août 2026". */
+export function formatDate(iso: string, locale = 'fr-FR'): string {
+  const d = new Date(iso.includes('T') ? iso : `${iso}T12:00:00`);
   if (isNaN(d.getTime())) return iso;
-  return `${String(d.getDate()).padStart(2, '0')} ${MONTHS_FR[d.getMonth()]} ${d.getFullYear()}`;
+  return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' }).format(d);
 }
 
-/** A compact range: "01–05 août 2026" or "14 juil. 2026". */
-export function frRange(startIso: string, endIso: string): string {
-  const s = new Date(startIso);
-  const e = new Date(endIso);
+/** Compact range for the active locale. */
+export function formatRange(startIso: string, endIso: string, locale = 'fr-FR'): string {
+  const s = new Date(startIso.includes('T') ? startIso : `${startIso}T12:00:00`);
+  const e = new Date(endIso.includes('T') ? endIso : `${endIso}T12:00:00`);
   if (isNaN(s.getTime()) || isNaN(e.getTime())) return `${startIso} – ${endIso}`;
-  if (s.getTime() === e.getTime()) return frDate(startIso);
-  if (s.getMonth() === e.getMonth() && s.getFullYear() === e.getFullYear()) {
-    return `${String(s.getDate()).padStart(2, '0')}–${String(e.getDate()).padStart(2, '0')} ${MONTHS_FR[s.getMonth()]} ${s.getFullYear()}`;
+  if (s.getTime() === e.getTime()) return formatDate(startIso, locale);
+  const sameMonth = s.getMonth() === e.getMonth() && s.getFullYear() === e.getFullYear();
+  if (sameMonth) {
+    const day = new Intl.DateTimeFormat(locale, { day: 'numeric' });
+    const rest = new Intl.DateTimeFormat(locale, { month: 'short', year: 'numeric' });
+    return `${day.format(s)}–${day.format(e)} ${rest.format(s)}`;
   }
-  return `${frDate(startIso)} – ${frDate(endIso)}`;
+  return `${formatDate(startIso, locale)} – ${formatDate(endIso, locale)}`;
+}
+
+/** @deprecated use formatDate */
+export function frDate(iso: string): string {
+  return formatDate(iso, 'fr-FR');
+}
+
+/** @deprecated use formatRange */
+export function frRange(startIso: string, endIso: string): string {
+  return formatRange(startIso, endIso, 'fr-FR');
 }
 
 /** Local calendar day as YYYY-MM-DD. */

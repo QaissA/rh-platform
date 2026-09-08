@@ -7,8 +7,22 @@ class DocumentRequest < ApplicationRecord
     title body issued_date signer
   ].freeze
 
-  enum :status, { pending: "pending", processing: "processing", ready: "ready", rejected: "rejected" }, default: "pending"
+  enum :status, {
+    pending: "pending",
+    processing: "processing",
+    ready: "ready",
+    rejected: "rejected",
+    cancelled: "cancelled",
+  }, default: "pending"
 
   validates :user_id, presence: true
   validates :doc_type, presence: true, inclusion: { in: DOC_TYPES }
+
+  def open?
+    pending? || processing?
+  end
+
+  def closed?
+    rejected? || cancelled?
+  end
 end

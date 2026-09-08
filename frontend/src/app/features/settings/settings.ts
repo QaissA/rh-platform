@@ -3,6 +3,8 @@ import { FormsModule } from '@angular/forms';
 import { ProfileService } from '../../core/profile.service';
 import { AuthService } from '../../core/auth.service';
 import { ToastService } from '../../core/toast.service';
+import { I18nService } from '../../core/i18n.service';
+import { TranslatePipe } from '../../core/translate.pipe';
 import { UserProfile } from '../../core/models';
 import { SignaturePad } from '../../shared/signature-pad';
 
@@ -10,13 +12,14 @@ const MIN_LENGTH = 8;
 
 @Component({
   selector: 'app-settings',
-  imports: [FormsModule, SignaturePad],
+  imports: [FormsModule, SignaturePad, TranslatePipe],
   templateUrl: './settings.html',
 })
 export class Settings {
   private profiles = inject(ProfileService);
   private auth = inject(AuthService);
   private toast = inject(ToastService);
+  private i18n = inject(I18nService);
 
   protected loading = signal(true);
   protected savingAddress = signal(false);
@@ -67,11 +70,11 @@ export class Settings {
         this.profile.set(p);
         this.requestedTitle = '';
         this.savingTitle.set(false);
-        this.toast.show('Demande de poste envoyée à la RH');
+        this.toast.show(this.i18n.t('settings.jobSent'));
       },
       error: () => {
         this.savingTitle.set(false);
-        this.toast.show('Impossible d’envoyer la demande');
+        this.toast.show(this.i18n.t('settings.jobSendFail'));
       },
     });
   }
@@ -82,11 +85,11 @@ export class Settings {
       next: (p) => {
         this.profile.set(p);
         this.savingTitle.set(false);
-        this.toast.show('Demande annulée');
+        this.toast.show(this.i18n.t('settings.cancelled'));
       },
       error: () => {
         this.savingTitle.set(false);
-        this.toast.show('Annulation impossible');
+        this.toast.show(this.i18n.t('settings.cancelFail'));
       },
     });
   }
@@ -105,11 +108,11 @@ export class Settings {
         next: (p) => {
           this.profile.set(p);
           this.savingAddress.set(false);
-          this.toast.show('Adresse enregistrée');
+          this.toast.show(this.i18n.t('settings.addressSaved'));
         },
         error: () => {
           this.savingAddress.set(false);
-          this.toast.show('Enregistrement impossible');
+          this.toast.show(this.i18n.t('settings.saveFail'));
         },
       });
   }
@@ -124,11 +127,11 @@ export class Settings {
         this.currentPassword = '';
         this.newPassword = '';
         this.confirmPassword = '';
-        this.toast.show('Mot de passe mis à jour');
+        this.toast.show(this.i18n.t('settings.passwordUpdated'));
       },
       error: (err) => {
         this.savingPassword.set(false);
-        this.pwdError.set(err?.error?.error || 'Changement de mot de passe impossible');
+        this.pwdError.set(err?.error?.error || this.i18n.t('settings.passwordFail'));
       },
     });
   }
@@ -146,11 +149,11 @@ export class Settings {
       next: (p) => {
         this.profile.set(p);
         this.savingSig.set(false);
-        this.toast.show('Signature enregistrée');
+        this.toast.show(this.i18n.t('settings.sigSaved'));
       },
       error: (err) => {
         this.savingSig.set(false);
-        this.toast.show(err?.error?.error || 'Enregistrement impossible');
+        this.toast.show(err?.error?.error || this.i18n.t('settings.saveFail'));
       },
     });
   }

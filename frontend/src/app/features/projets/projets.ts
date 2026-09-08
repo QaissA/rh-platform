@@ -4,12 +4,14 @@ import { ProjectAdminService } from '../../core/project-admin.service';
 import { BusinessUnitAdminService } from '../../core/business-unit-admin.service';
 import { UserAdminService } from '../../core/user-admin.service';
 import { ToastService } from '../../core/toast.service';
+import { I18nService } from '../../core/i18n.service';
+import { TranslatePipe } from '../../core/translate.pipe';
 import { BusinessUnit, Project, User } from '../../core/models';
 import { fullName } from '../../core/format';
 
 @Component({
   selector: 'app-projets',
-  imports: [FormsModule],
+  imports: [FormsModule, TranslatePipe],
   templateUrl: './projets.html',
 })
 export class Projets {
@@ -17,6 +19,7 @@ export class Projets {
   private buApi = inject(BusinessUnitAdminService);
   private userApi = inject(UserAdminService);
   private toast = inject(ToastService);
+  private i18n = inject(I18nService);
 
   protected loading = signal(true);
   protected submitting = signal(false);
@@ -30,7 +33,6 @@ export class Projets {
   protected editName = '';
   protected filterBu = signal('');
 
-  // create form
   protected name = '';
   protected businessUnitId = '';
   protected leadId = '';
@@ -67,12 +69,12 @@ export class Projets {
           this.panelOpen.set(false);
           this.name = '';
           this.leadId = '';
-          this.toast.show('Projet créé');
+          this.toast.show(this.i18n.t('projects.created'));
           this.reload();
         },
         error: (err) => {
           this.submitting.set(false);
-          this.toast.show(this.errorText(err, 'Échec de la création du projet'));
+          this.toast.show(this.errorText(err, 'projects.createFail'));
         },
       });
   }
@@ -85,11 +87,11 @@ export class Projets {
       next: (updated) => {
         this.busyId.set(null);
         this.replace(updated);
-        this.toast.show(`Chef·fe de projet mis·e à jour pour ${updated.name}`);
+        this.toast.show(this.i18n.t('projects.leadUpdated', { name: updated.name }));
       },
       error: (err) => {
         this.busyId.set(null);
-        this.toast.show(this.errorText(err, 'Assignation refusée'));
+        this.toast.show(this.errorText(err, 'projects.assignFail'));
         this.reload();
       },
     });
@@ -114,11 +116,11 @@ export class Projets {
         this.busyId.set(null);
         this.editingId.set(null);
         this.replace(updated);
-        this.toast.show('Projet renommé');
+        this.toast.show(this.i18n.t('projects.renamed'));
       },
       error: (err) => {
         this.busyId.set(null);
-        this.toast.show(this.errorText(err, 'Renommage refusé'));
+        this.toast.show(this.errorText(err, 'projects.renameFail'));
       },
     });
   }
@@ -136,12 +138,12 @@ export class Projets {
         this.busyId.set(null);
         this.confirmId.set(null);
         this.projects.update((list) => list.filter((p) => p.id !== project.id));
-        this.toast.show(`Projet « ${project.name} » supprimé`);
+        this.toast.show(this.i18n.t('projects.deleted', { name: project.name }));
       },
       error: (err) => {
         this.busyId.set(null);
         this.confirmId.set(null);
-        this.toast.show(this.errorText(err, 'Suppression refusée'));
+        this.toast.show(this.errorText(err, 'projects.deleteFail'));
       },
     });
   }
@@ -171,8 +173,8 @@ export class Projets {
     return value ? Number(value) : null;
   }
 
-  private errorText(err: unknown, fallback: string): string {
+  private errorText(err: unknown, fallbackKey: string): string {
     const e = err as { error?: { error?: string; errors?: string[] } };
-    return e?.error?.error || e?.error?.errors?.join(', ') || fallback;
+    return e?.error?.error || e?.error?.errors?.join(', ') || this.i18n.t(fallbackKey);
   }
 }

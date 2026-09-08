@@ -1,37 +1,37 @@
 <section class="view">
   <div class="sectionhead">
     <div>
-      <h3>Paramètres</h3>
-      <p>Votre poste, votre adresse, votre mot de passe, votre signature.</p>
+      <h3>{{ 'settings.title' | t }}</h3>
+      <p>{{ 'settings.help' | t }}</p>
     </div>
   </div>
 
   @if (loading()) {
-    <div class="card"><div class="loading"><span class="spinner"></span> Chargement…</div></div>
+    <div class="card"><div class="loading"><span class="spinner"></span> {{ 'common.loading' | t }}</div></div>
   } @else {
     <div class="stack">
       <div class="card">
-        <div class="card__hd"><h3>Poste</h3></div>
+        <div class="card__hd"><h3>{{ 'settings.job' | t }}</h3></div>
         <div class="card__bd">
           <p class="widget__ctx" style="margin-bottom:12px">
-            Poste actuel :
-            <b>{{ profile()?.job_title || 'Non renseigné' }}</b>
+            {{ 'settings.currentJob' | t }}
+            <b>{{ profile()?.job_title || ('settings.unset' | t) }}</b>
           </p>
           @if (profile()?.pending_job_title) {
             <p class="chip warn" style="margin-bottom:12px">
-              <span class="d"></span> En attente de la RH : {{ profile()?.pending_job_title }}
+              <span class="d"></span> {{ 'settings.pendingHr' | t:{ title: profile()?.pending_job_title ?? '' } }}
             </p>
-            <button class="btn btn--ghost btn--sm" (click)="cancelTitle()" [disabled]="savingTitle()">Annuler la demande</button>
+            <button class="btn btn--ghost btn--sm" (click)="cancelTitle()" [disabled]="savingTitle()">{{ 'settings.cancelRequest' | t }}</button>
           } @else {
             <div class="formgrid">
               <div class="full">
-                <label for="jt">Demander un poste</label>
-                <input id="jt" name="jt" [(ngModel)]="requestedTitle" placeholder="Ex. Développeuse" />
+                <label for="jt">{{ 'settings.requestJob' | t }}</label>
+                <input id="jt" name="jt" [(ngModel)]="requestedTitle" [placeholder]="'settings.jobPlaceholder' | t" />
               </div>
             </div>
             <div class="formactions">
               <button class="btn btn--primary btn--sm" (click)="requestTitle()" [disabled]="savingTitle() || !requestedTitle.trim()">
-                Envoyer à la RH
+                {{ 'settings.sendToHr' | t }}
               </button>
             </div>
           }
@@ -39,63 +39,63 @@
       </div>
 
       <div class="card">
-        <div class="card__hd"><h3>Adresse</h3></div>
+        <div class="card__hd"><h3>{{ 'settings.address' | t }}</h3></div>
         <div class="card__bd">
           <div class="formgrid">
-            <div class="full"><label for="ad">Voie</label><input id="ad" name="ad" [(ngModel)]="addressLine" /></div>
-            <div><label for="cp">Code postal</label><input id="cp" name="cp" [(ngModel)]="postalCode" /></div>
-            <div><label for="ci">Ville</label><input id="ci" name="ci" [(ngModel)]="city" /></div>
-            <div><label for="co">Pays</label><input id="co" name="co" [(ngModel)]="country" /></div>
+            <div class="full"><label for="ad">{{ 'settings.street' | t }}</label><input id="ad" name="ad" [(ngModel)]="addressLine" /></div>
+            <div><label for="cp">{{ 'settings.postal' | t }}</label><input id="cp" name="cp" [(ngModel)]="postalCode" /></div>
+            <div><label for="ci">{{ 'settings.city' | t }}</label><input id="ci" name="ci" [(ngModel)]="city" /></div>
+            <div><label for="co">{{ 'settings.country' | t }}</label><input id="co" name="co" [(ngModel)]="country" /></div>
           </div>
           <div class="formactions">
             <button class="btn btn--primary btn--sm" (click)="saveAddress()" [disabled]="savingAddress()">
-              @if (savingAddress()) { Enregistrement… } @else { Enregistrer l’adresse }
+              @if (savingAddress()) { {{ 'common.saving' | t }} } @else { {{ 'settings.saveAddress' | t }} }
             </button>
           </div>
         </div>
       </div>
 
       <div class="card">
-        <div class="card__hd"><h3>Mot de passe</h3></div>
+        <div class="card__hd"><h3>{{ 'settings.password' | t }}</h3></div>
         <div class="card__bd">
           <div class="formgrid">
-            <div class="full"><label for="cur">Mot de passe actuel</label><input id="cur" name="cur" type="password" [(ngModel)]="currentPassword" autocomplete="current-password" /></div>
-            <div><label for="np">Nouveau</label><input id="np" name="np" type="password" [(ngModel)]="newPassword" autocomplete="new-password" /></div>
-            <div><label for="cf">Confirmation</label><input id="cf" name="cf" type="password" [(ngModel)]="confirmPassword" autocomplete="new-password" /></div>
+            <div class="full"><label for="cur">{{ 'settings.currentPassword' | t }}</label><input id="cur" name="cur" type="password" [(ngModel)]="currentPassword" autocomplete="current-password" /></div>
+            <div><label for="np">{{ 'settings.newPassword' | t }}</label><input id="np" name="np" type="password" [(ngModel)]="newPassword" autocomplete="new-password" /></div>
+            <div><label for="cf">{{ 'settings.confirmPassword' | t }}</label><input id="cf" name="cf" type="password" [(ngModel)]="confirmPassword" autocomplete="new-password" /></div>
           </div>
-          @if (tooShort()) { <p class="widget__ctx" style="color:var(--bad);margin-top:8px">Au moins 8 caractères.</p> }
-          @if (mismatch()) { <p class="widget__ctx" style="color:var(--bad);margin-top:8px">La confirmation ne correspond pas.</p> }
+          @if (tooShort()) { <p class="widget__ctx" style="color:var(--bad);margin-top:8px">{{ 'settings.tooShort' | t }}</p> }
+          @if (mismatch()) { <p class="widget__ctx" style="color:var(--bad);margin-top:8px">{{ 'settings.mismatch' | t }}</p> }
           @if (pwdError()) { <p class="widget__ctx" style="color:var(--bad);margin-top:8px">{{ pwdError() }}</p> }
           <div class="formactions">
             <button class="btn btn--primary btn--sm" (click)="changePassword()" [disabled]="savingPassword() || tooShort() || mismatch() || !newPassword || !currentPassword">
-              Changer le mot de passe
+              {{ 'settings.changePassword' | t }}
             </button>
           </div>
         </div>
       </div>
 
       <div class="card">
-        <div class="card__hd"><h3>Signature</h3></div>
+        <div class="card__hd"><h3>{{ 'settings.signature' | t }}</h3></div>
         <div class="card__bd">
           @if (!canDraw()) {
             @if (profile()?.signature_png; as png) {
-              <img class="sigpreview" [src]="png" alt="Votre signature" />
+              <img class="sigpreview" [src]="png" [alt]="'settings.yourSignature' | t" />
             }
             <p class="widget__ctx" style="margin-top:12px">
-              Signature enregistrée. Seule la RH peut autoriser une modification.
+              {{ 'settings.lockedHelp' | t }}
             </p>
           } @else {
             @if (profile()?.signature_png; as png) {
-              <p class="widget__ctx" style="margin-bottom:12px">Signature actuelle — dessinez ci-dessous pour la remplacer.</p>
-              <img class="sigpreview" [src]="png" alt="Signature actuelle" style="margin-bottom:12px" />
+              <p class="widget__ctx" style="margin-bottom:12px">{{ 'settings.replaceHelp' | t }}</p>
+              <img class="sigpreview" [src]="png" [alt]="'settings.currentSignature' | t" style="margin-bottom:12px" />
             } @else {
-              <p class="widget__ctx" style="margin-bottom:12px">Signez avec la souris ou le doigt, puis enregistrez. Cette étape n’est possible qu’une fois.</p>
+              <p class="widget__ctx" style="margin-bottom:12px">{{ 'settings.drawHelp' | t }}</p>
             }
             <app-signature-pad />
             <div class="formactions">
-              <button class="btn btn--ghost btn--sm" type="button" (click)="pad()?.clear()">Effacer</button>
+              <button class="btn btn--ghost btn--sm" type="button" (click)="pad()?.clear()">{{ 'settings.clear' | t }}</button>
               <button class="btn btn--primary btn--sm" type="button" (click)="saveSignature()" [disabled]="savingSig() || !pad()?.hasInk()">
-                @if (savingSig()) { Enregistrement… } @else { Enregistrer la signature }
+                @if (savingSig()) { {{ 'common.saving' | t }} } @else { {{ 'settings.saveSignature' | t }} }
               </button>
             </div>
           }

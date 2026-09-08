@@ -35,44 +35,12 @@ class LeaveRequestsController < ApplicationController
   # PATCH /requests/:id/approve
   # Manager (step 1) moves pending -> pending_hr. HR (step 2) confirms and debits.
   def approve
-    return render json: { error: "Accès refusé" }, status: :forbidden unless can_decide?(@request)
-    return render json: { error: "Demande déjà traitée" }, status: :unprocessable_content unless @request.awaiting?
-
-    if @request.pending?
-      @request.update!(status: "pending_hr", decided_by: current_user_id, decided_at: Time.current)
-      notify_leave("leave_manager_approved",
-                   "Votre manager a accepté votre congé",
-                   "Votre demande est transmise à la RH pour confirmation.")
-      return render json: request_json(@request)
-    end
-
-    ActiveRecord::Base.transaction do
-      balance = LeaveBalance.find_or_create_by!(user_id: @request.user_id)
-      balance.update!(days_remaining: balance.days_remaining - @request.working_days)
-      @request.update!(status: "approved", decided_by: current_user_id, decided_at: Time.current)
-    end
-
-    notify_leave("leave_hr_approved",
-                 "Votre congé est confirmé",
-                 "La RH a validé votre demande. Le solde a été débité.")
-    render json: request_json(@request)
-  rescue ActiveRecord::RecordInvalid
-    render json: { error: "Solde insuffisant" }, status: :unprocessable_content
+    render_decision(Leave::Decide.new(request: @request, actor: decide_actor).approve)
   end
 
   # PATCH /requests/:id/reject  -> manager (pending) or HR (pending_hr) refuses.
   def reject
-    return render json: { error: "Accès refusé" }, status: :forbidden unless can_decide?(@request)
-    return render json: { error: "Demande déjà traitée" }, status: :unprocessable_content unless @request.awaiting?
-
-    @request.update!(
-      status: "rejected",
-      decided_by: current_user_id,
-      decided_at: Time.current,
-      decision_comment: params[:comment],
-    )
-
-    render json: request_json(@request)
+    render_decision(Leave::Decide.new(request: @request, actor: decide_actor).reject(comment: params[:comment]))
   end
 
   private
@@ -90,15 +58,19 @@ class LeaveRequestsController < ApplicationController
     rh? || admin?
   end
 
-  # Step 1 (pending): manager of the team, or admin.
-  # Step 2 (pending_hr): RH, or admin. Manager cannot skip HR.
-  def can_decide?(req)
-    if req.pending?
-      admin? || (manager? && managed_team_ids.include?(req.team_id))
-    elsif req.pending_hr?
-      admin? || rh?
+  def decide_actor
+    Leave::Decide::Actor.new(
+      id: current_user_id.to_i,
+      role: current_user_role,
+      managed_team_ids: managed_team_ids,
+    )
+  end
+
+  def render_decision(result)
+    if result.ok
+      render json: request_json(@request)
     else
-      false
+      render json: { error: result.error }, status: result.status
     end
   end
 
@@ -111,16 +83,6 @@ class LeaveRequestsController < ApplicationController
 
   def leave_request_params
     params.permit(:start_date, :end_date, :reason)
-  end
-
-  def notify_leave(kind, title, body)
-    NotificationClient.notify(
-      user_id: @request.user_id,
-      kind: kind,
-      title: title,
-      body: body,
-      link: "/conges",
-    )
   end
 
   def request_json(r)
