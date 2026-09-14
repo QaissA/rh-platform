@@ -1,0 +1,1 @@
+typedef TokenReader = String? Function();

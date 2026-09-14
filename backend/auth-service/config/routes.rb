@@ -32,6 +32,7 @@ Rails.application.routes.draw do
     end
     post :read, on: :member
   end
+  get "notifications" => "notifications#index"
   patch "notifications/:id/read" => "notifications#read"
   post "internal/notifications" => "internal_notifications#create"
 end
