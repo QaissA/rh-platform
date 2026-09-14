@@ -17,6 +17,8 @@ Thumbs.db
 # Local agent / IDE metadata
 .claude/
 .cursor/
+.worktrees/
+worktrees/
 
 # Node / Angular (also covered by frontend/.gitignore)
 node_modules/
@@ -26,19 +28,32 @@ out-tsc/
 npm-debug.log
 yarn-error.log
 
-# Rails runtime
-**/.bundle/
-**/vendor/bundle/
-**/log/*
-!**/log/.keep
-**/tmp/*
-!**/tmp/.keep
-**/tmp/pids/*
-!**/tmp/pids/.keep
-**/storage/*
-!**/storage/.keep
-**/tmp/storage/*
-!**/tmp/storage/.keep
+# Rails runtime (scoped to backend — do not use **/storage/* or it
+# also hides Flutter lib/.../storage/ feature code)
+backend/**/.bundle/
+backend/**/vendor/bundle/
+backend/**/log/*
+!backend/**/log/.keep
+backend/**/tmp/*
+!backend/**/tmp/.keep
+backend/**/tmp/pids/*
+!backend/**/tmp/pids/.keep
+backend/**/storage/*
+!backend/**/storage/.keep
+backend/**/tmp/storage/*
+!backend/**/tmp/storage/.keep
+
+# Flutter / Dart (mobile/ also has its own .gitignore)
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/.pub-cache/
+mobile/.pub/
+mobile/build/
+mobile/**/*.iml
+mobile/.idea/
+*.symbols
+*.map.json
 
 # Test / coverage
 coverage/
